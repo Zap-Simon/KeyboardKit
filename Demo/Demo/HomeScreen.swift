@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeScreen: View {
 
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var quoteText = ""
     @State private var quickNote = ""
     @State private var customer = ""
@@ -17,7 +19,7 @@ struct HomeScreen: View {
                 }
                 .padding(16)
             }
-            .background(ScreenTheme.background.ignoresSafeArea())
+            .background(MaterialScreenBackground())
             .navigationTitle("GlazingKey Field")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -49,8 +51,9 @@ private extension HomeScreen {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ScreenTheme.card)
-        .overlay(cardStroke)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
@@ -66,7 +69,7 @@ private extension HomeScreen {
                 HStack(alignment: .top, spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(ScreenTheme.panel)
+                            .fill(ScreenTheme.panelTint(for: colorScheme))
                             .frame(width: 28, height: 28)
                         Text("\(index + 1)")
                             .font(.system(size: 13, weight: .bold))
@@ -86,8 +89,9 @@ private extension HomeScreen {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ScreenTheme.card)
-        .overlay(cardStroke)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
@@ -104,7 +108,9 @@ private extension HomeScreen {
                 .foregroundStyle(ScreenTheme.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
-                .background(ScreenTheme.panel)
+                .background {
+                    MaterialScreenInsetBackground(cornerRadius: 16, tint: ScreenTheme.panelTint(for: colorScheme))
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             Text("Tap the tick to insert the full record. Long-press it to insert only the glazing size.")
@@ -113,8 +119,9 @@ private extension HomeScreen {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ScreenTheme.card)
-        .overlay(cardStroke)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
@@ -127,16 +134,28 @@ private extension HomeScreen {
                 .foregroundStyle(ScreenTheme.accent)
 
             TextField("Customer or site", text: $customer)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 14)
+                .frame(height: 46)
+                .background {
+                    MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+                }
 
             TextField("Quick note", text: $quickNote)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 14)
+                .frame(height: 46)
+                .background {
+                    MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+                }
 
             TextEditor(text: $quoteText)
                 .scrollContentBackground(.hidden)
                 .padding(10)
                 .frame(minHeight: 180)
-                .background(ScreenTheme.panel)
+                .background {
+                    MaterialScreenInsetBackground(cornerRadius: 16, tint: ScreenTheme.panelTint(for: colorScheme))
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -149,8 +168,9 @@ private extension HomeScreen {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ScreenTheme.card)
-        .overlay(cardStroke)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
@@ -163,13 +183,10 @@ private extension HomeScreen {
         }
         .padding(.horizontal, 12)
         .frame(height: 32)
-        .background(ScreenTheme.panel)
+        .background {
+            MaterialScreenInsetBackground(cornerRadius: 16, tint: ScreenTheme.panelTint(for: colorScheme))
+        }
         .clipShape(Capsule())
-    }
-
-    var cardStroke: some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .stroke(ScreenTheme.line, lineWidth: 1)
     }
 
     var setupSteps: [(title: String, body: String)] {
@@ -182,21 +199,88 @@ private extension HomeScreen {
     }
 }
 
+private struct MaterialScreenBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        LinearGradient(
+            colors: ScreenTheme.backgroundColors(for: colorScheme),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(colorScheme == .dark ? Color.black.opacity(0.18) : Color.white.opacity(0.06))
+        .ignoresSafeArea()
+    }
+}
+
+private struct MaterialScreenCardBackground: View {
+    let cornerRadius: CGFloat
+    let tint: Color
+    let shadowOpacity: CGFloat
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.regularMaterial)
+            .overlay(tint.opacity(colorScheme == .dark ? 0.16 : 0.10))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.26), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? shadowOpacity * 1.2 : shadowOpacity), radius: 18, x: 0, y: 10)
+    }
+}
+
+private struct MaterialScreenInsetBackground: View {
+    let cornerRadius: CGFloat
+    let tint: Color
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.thinMaterial)
+            .overlay(tint.opacity(colorScheme == .dark ? 0.14 : 0.08))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.22), lineWidth: 1)
+            )
+    }
+}
+
 private enum ScreenTheme {
-    static let background = LinearGradient(
-        colors: [
-            Color(red: 242 / 255, green: 249 / 255, blue: 252 / 255),
-            Color(red: 228 / 255, green: 238 / 255, blue: 244 / 255)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-    static let card = Color.white.opacity(0.74)
-    static let panel = Color(red: 224 / 255, green: 236 / 255, blue: 241 / 255)
     static let accent = Color(red: 28 / 255, green: 144 / 255, blue: 175 / 255)
-    static let ink = Color(red: 20 / 255, green: 32 / 255, blue: 40 / 255)
-    static let inkSoft = Color(red: 82 / 255, green: 99 / 255, blue: 111 / 255)
+    static let ink = Color.primary
+    static let inkSoft = Color.secondary
     static let line = Color.black.opacity(0.08)
+
+    static func backgroundColors(for colorScheme: ColorScheme) -> [Color] {
+        switch colorScheme {
+        case .dark:
+            return [
+                Color(red: 18 / 255, green: 27 / 255, blue: 35 / 255),
+                Color(red: 10 / 255, green: 15 / 255, blue: 22 / 255)
+            ]
+        default:
+            return [
+                Color(red: 242 / 255, green: 249 / 255, blue: 252 / 255),
+                Color(red: 228 / 255, green: 238 / 255, blue: 244 / 255)
+            ]
+        }
+    }
+
+    static func cardTint(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+        ? Color(red: 110 / 255, green: 135 / 255, blue: 150 / 255)
+        : Color(red: 224 / 255, green: 236 / 255, blue: 241 / 255)
+    }
+
+    static func panelTint(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+        ? Color(red: 85 / 255, green: 112 / 255, blue: 130 / 255)
+        : Color(red: 224 / 255, green: 236 / 255, blue: 241 / 255)
+    }
 }
 
 struct HomeScreen_Previews: PreviewProvider {

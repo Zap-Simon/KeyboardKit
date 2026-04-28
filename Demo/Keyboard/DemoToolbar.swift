@@ -1,5 +1,47 @@
 import SwiftUI
 
+private struct SettingsSurfaceBackground: View {
+    let cornerRadius: CGFloat
+    var lightOverlayOpacity: CGFloat = 0.08
+    var darkOverlayOpacity: CGFloat = 0.18
+    var shadowOpacity: CGFloat = 0.08
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        KeyboardPanelBackground(
+            cornerRadius: cornerRadius,
+            lightOverlayOpacity: lightOverlayOpacity,
+            darkOverlayOpacity: darkOverlayOpacity
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? shadowOpacity * 1.2 : shadowOpacity), radius: 8, x: 0, y: 4)
+    }
+}
+
+private struct AccentButtonBackground: View {
+    let cornerRadius: CGFloat
+    let isEnabled: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Group {
+            if isEnabled {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.accentColor)
+                    .overlay(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.22), lineWidth: 1)
+                    )
+            } else {
+                SettingsSurfaceBackground(cornerRadius: cornerRadius, lightOverlayOpacity: 0.04, darkOverlayOpacity: 0.10)
+                    .opacity(0.65)
+            }
+        }
+    }
+}
+
 struct SettingsPanelView: View {
     @ObservedObject var presetsStore: PresetsStore
     @ObservedObject var state: KeyboardState
@@ -101,11 +143,7 @@ struct SettingsPanelView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.58))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.28), lineWidth: 1)
-        )
+        .background(SettingsSurfaceBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
 
@@ -137,13 +175,9 @@ private struct SettingsIconButton: View {
             Image(systemName: systemName)
                 .font(.system(size: 14, weight: .bold))
                 .frame(width: 34, height: 34)
-                .background(Color.white.opacity(0.58))
+                .background(SettingsSurfaceBackground(cornerRadius: 10, lightOverlayOpacity: 0.07, darkOverlayOpacity: 0.14, shadowOpacity: 0.04))
                 .foregroundColor(foregroundColor)
                 .cornerRadius(10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.white.opacity(0.28), lineWidth: 1)
-                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -186,7 +220,7 @@ struct PresetRowView: View {
                     Image(systemName: "chevron.up")
                         .font(.system(size: 10, weight: .bold))
                         .frame(width: 28, height: 18)
-                        .background(Color.white.opacity(canMoveUp ? 0.50 : 0.22))
+                        .background(SettingsSurfaceBackground(cornerRadius: 7, lightOverlayOpacity: canMoveUp ? 0.07 : 0.03, darkOverlayOpacity: canMoveUp ? 0.14 : 0.08, shadowOpacity: 0.03).opacity(canMoveUp ? 1 : 0.65))
                         .foregroundColor(canMoveUp ? .primary : Color(UIColor.tertiaryLabel))
                         .cornerRadius(7)
                 }
@@ -197,7 +231,7 @@ struct PresetRowView: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .bold))
                         .frame(width: 28, height: 18)
-                        .background(Color.white.opacity(canMoveDown ? 0.50 : 0.22))
+                        .background(SettingsSurfaceBackground(cornerRadius: 7, lightOverlayOpacity: canMoveDown ? 0.07 : 0.03, darkOverlayOpacity: canMoveDown ? 0.14 : 0.08, shadowOpacity: 0.03).opacity(canMoveDown ? 1 : 0.65))
                         .foregroundColor(canMoveDown ? .primary : Color(UIColor.tertiaryLabel))
                         .cornerRadius(7)
                 }
@@ -211,11 +245,7 @@ struct PresetRowView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.58))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.28), lineWidth: 1)
-        )
+        .background(SettingsSurfaceBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
 }
@@ -263,7 +293,7 @@ struct PresetEditorView: View {
                         .font(.system(size: 13, weight: .bold))
                         .padding(.horizontal, 12)
                         .frame(height: 34)
-                        .background(canSave ? Color.accentColor : Color.white.opacity(0.36))
+                        .background(AccentButtonBackground(cornerRadius: 10, isEnabled: canSave))
                         .foregroundColor(canSave ? .white : Color(UIColor.tertiaryLabel))
                         .cornerRadius(10)
                 }
@@ -282,7 +312,7 @@ struct PresetEditorView: View {
                                 .minimumScaleFactor(0.75)
                                 .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
                                 .padding(.horizontal, 10)
-                                .background(Color.white.opacity(0.52))
+                                .background(SettingsSurfaceBackground(cornerRadius: 9, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.03))
                                 .cornerRadius(9)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 9)
@@ -320,7 +350,7 @@ struct PresetEditorView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
-                            .background(Color.white.opacity(0.52))
+                            .background(SettingsSurfaceBackground(cornerRadius: 9, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.03))
                             .cornerRadius(9)
 
                             AdjustmentButton(systemName: "plus", isEnabled: adjustment < 100) {
@@ -361,11 +391,7 @@ private struct EditorSection<Content: View>: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
-        .background(Color.white.opacity(0.58))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.28), lineWidth: 1)
-        )
+        .background(SettingsSurfaceBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
 }
@@ -380,7 +406,7 @@ private struct AdjustmentButton: View {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .bold))
                 .frame(width: 44, height: 52)
-                .background(isEnabled ? Color.white.opacity(0.58) : Color.white.opacity(0.22))
+                .background(SettingsSurfaceBackground(cornerRadius: 9, lightOverlayOpacity: isEnabled ? 0.08 : 0.03, darkOverlayOpacity: isEnabled ? 0.18 : 0.10, shadowOpacity: 0.03).opacity(isEnabled ? 1 : 0.65))
                 .foregroundColor(isEnabled ? .primary : Color(UIColor.tertiaryLabel))
                 .cornerRadius(9)
         }
@@ -412,13 +438,9 @@ struct PresetNamePadView: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 34)
-                                .background(Color.white.opacity(0.58))
+                                .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.08, darkOverlayOpacity: 0.16, shadowOpacity: 0.02))
                                 .foregroundColor(.primary)
                                 .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(0.24), lineWidth: 1)
-                                )
                         }
                         .buttonStyle(.plain)
                     }
@@ -430,13 +452,9 @@ struct PresetNamePadView: View {
                     Text("Clear")
                         .font(.system(size: 13, weight: .semibold))
                         .frame(width: 70, height: 36)
-                        .background(Color.white.opacity(0.46))
+                        .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.02))
                         .foregroundColor(.primary)
                         .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(0.22), lineWidth: 1)
-                        )
                 }
                 .buttonStyle(.plain)
 
@@ -445,13 +463,9 @@ struct PresetNamePadView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
-                        .background(Color.white.opacity(0.58))
+                        .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.08, darkOverlayOpacity: 0.16, shadowOpacity: 0.02))
                         .foregroundColor(.primary)
                         .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(0.24), lineWidth: 1)
-                        )
                 }
                 .buttonStyle(.plain)
 
@@ -459,13 +473,9 @@ struct PresetNamePadView: View {
                     Image(systemName: "delete.left")
                         .font(.system(size: 14, weight: .semibold))
                         .frame(width: 70, height: 36)
-                        .background(Color.white.opacity(0.46))
+                        .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.02))
                         .foregroundColor(.primary)
                         .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(0.22), lineWidth: 1)
-                        )
                 }
                 .buttonStyle(.plain)
             }

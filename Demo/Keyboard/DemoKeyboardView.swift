@@ -285,7 +285,72 @@ struct KeyboardRootView: View {
 
 private struct KeyboardNeutralShellView: View {
     var body: some View {
-        Color(uiColor: .secondarySystemBackground)
+        KeyboardMaterialShellView()
+    }
+}
+
+private struct KeyboardMaterialShellView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(colorScheme == .dark ? Color.black.opacity(0.15) : Color.white.opacity(0.08))
+            .overlay(
+                Rectangle()
+                    .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.18), lineWidth: 1)
+            )
+    }
+}
+
+struct KeyboardPanelBackground: View {
+    let cornerRadius: CGFloat
+    var lightOverlayOpacity: CGFloat = 0.08
+    var darkOverlayOpacity: CGFloat = 0.18
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.regularMaterial)
+            .overlay(colorScheme == .dark ? Color.black.opacity(darkOverlayOpacity) : Color.white.opacity(lightOverlayOpacity))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.24), lineWidth: 1)
+            )
+    }
+}
+
+private struct KeyboardKeyBackground: View {
+    let cornerRadius: CGFloat
+    let isSpecial: Bool
+    let isAccent: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            if isAccent {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.accentColor)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10))
+            } else {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(.thinMaterial)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        colorScheme == .dark
+                        ? Color.black.opacity(isSpecial ? 0.20 : 0.12)
+                        : Color.white.opacity(isSpecial ? 0.12 : 0.06)
+                    )
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.22), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.24 : 0.10), radius: isAccent ? 2 : 1.5, x: 0, y: 1)
     }
 }
 
@@ -344,10 +409,16 @@ struct ModeSelectorView: View {
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
-                        .background(state.mode == mode ? Color.white.opacity(0.86) : Color.white.opacity(0.42))
+                        .background(
+                            KeyboardPanelBackground(
+                                cornerRadius: 10,
+                                lightOverlayOpacity: state.mode == mode ? 0.16 : 0.08,
+                                darkOverlayOpacity: state.mode == mode ? 0.22 : 0.18
+                            )
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(state.mode == mode ? 0.70 : 0.30), lineWidth: 1)
+                                .stroke(state.mode == mode ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1.2)
                         )
                         .foregroundColor(.primary)
                         .cornerRadius(10)
@@ -409,7 +480,13 @@ struct GlassTypeSelectorView: View {
                             .frame(width: 118, alignment: .leading)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
-                            .background(isSelected ? Color.accentColor : Color.white.opacity(0.58))
+                            .background {
+                                if isSelected {
+                                    KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
+                                } else {
+                                    KeyboardPanelBackground(cornerRadius: 10)
+                                }
+                            }
                             .foregroundColor(isSelected ? .white : .primary)
                             .cornerRadius(10)
                         }
@@ -457,7 +534,13 @@ struct WeightSpecSelectorView: View {
                                 .lineLimit(1)
                                 .frame(height: 32)
                                 .padding(.horizontal, 12)
-                                .background(isSelected ? Color.accentColor : Color.white.opacity(0.58))
+                                .background {
+                                    if isSelected {
+                                        KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
+                                    } else {
+                                        KeyboardPanelBackground(cornerRadius: 10)
+                                    }
+                                }
                                 .foregroundColor(isSelected ? .white : .primary)
                                 .cornerRadius(10)
                         }
@@ -550,11 +633,7 @@ struct WeightMeasurementCardView: View {
         .frame(height: 52)
         .padding(.horizontal, 7)
         .padding(.vertical, 6)
-        .background(Color.white.opacity(0.58))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.30), lineWidth: 1)
-        )
+        .background(KeyboardPanelBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
 }
@@ -600,11 +679,7 @@ struct MeasurementCardView: View {
         .frame(height: 52)
         .padding(.horizontal, 5)
         .padding(.vertical, 4)
-        .background(Color.white.opacity(0.56))
-        .overlay(
-            RoundedRectangle(cornerRadius: 9)
-                .stroke(Color.white.opacity(0.30), lineWidth: 1)
-        )
+        .background(KeyboardPanelBackground(cornerRadius: 9, lightOverlayOpacity: 0.07, darkOverlayOpacity: 0.16))
         .cornerRadius(9)
     }
 }
@@ -638,10 +713,15 @@ struct CompactFieldCellView: View {
         .padding(.horizontal, 5)
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, minHeight: 32)
-        .background(
-            RoundedRectangle(cornerRadius: 7)
-                .fill(isActive ? Color.accentColor.opacity(0.12) : Color.white.opacity(0.50))
-        )
+        .background {
+            if isActive {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(.thinMaterial)
+                    .overlay(RoundedRectangle(cornerRadius: 7).fill(Color.accentColor.opacity(0.12)))
+            } else {
+                KeyboardPanelBackground(cornerRadius: 7, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14)
+            }
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 7)
                 .stroke(isActive ? Color.accentColor.opacity(0.85) : Color.white.opacity(0.22), lineWidth: 1.5)
@@ -692,11 +772,7 @@ struct CutSummaryView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .frame(height: 52)
-        .background(Color.white.opacity(0.58))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.28), lineWidth: 1)
-        )
+        .background(KeyboardPanelBackground(cornerRadius: 12))
         .cornerRadius(12)
     }
 }
@@ -747,11 +823,7 @@ struct WeightSummaryView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .frame(height: 52)
-        .background(Color.white.opacity(0.58))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.28), lineWidth: 1)
-        )
+        .background(KeyboardPanelBackground(cornerRadius: 12))
         .cornerRadius(12)
     }
 }
@@ -900,32 +972,18 @@ struct KeypadButtonView: View {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 16))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.white.opacity(0.48))
+                        .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: false))
                         .cornerRadius(10)
                         .foregroundColor(.secondary)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                        )
                 }
             } else {
                 Button(action: onTap) {
                     Text(label)
                         .font(.system(size: isInsert ? 18 : 17, weight: isInsert ? .bold : .regular))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(
-                            isInsert
-                            ? Color.accentColor
-                            : isSpecial
-                              ? Color.white.opacity(0.42)
-                              : Color.white.opacity(0.64)
-                        )
+                        .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: isSpecial, isAccent: isInsert))
                         .foregroundColor(isInsert ? .white : .primary)
                         .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(isInsert ? 0.30 : 0.22), lineWidth: 1)
-                        )
                 }
                 .if(onLongPress != nil) { view in
                     view.simultaneousGesture(
