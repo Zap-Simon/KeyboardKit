@@ -1,0 +1,66 @@
+workflows:
+  ios-testflight:
+    name: GlazingKey Field – TestFlight
+    max_build_duration: 60
+    environment:
+      xcode: 26.4.1
+      ios_signing:
+        certificates:
+          - Distribution-GlazingKeyField
+        provisioning_profiles:
+          - glazingkey-field
+          - glazingkey-field-keyboard
+
+    integrations:
+      app_store_connect: codemagic
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+
+      - name: Set CI build number
+        script: |
+          BUILD_NUMBER="${CM_BUILD_NUMBER:-${PROJECT_BUILD_NUMBER:-${BUILD_NUMBER:-}}}"
+          if [ -z "$BUILD_NUMBER" ]; then
+            BUILD_NUMBER="$(date +%Y%m%d%H%M)"
+          fi
+
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Demo/Demo/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Demo/Keyboard/Info.plist
+          echo "Using CI build number: $BUILD_NUMBER"
+
+      - name: Exclude assets folder from CI build
+        script: |
+          if [ -d assets ]; then
+            rm -rf assets
+            echo "Removed assets/ from CI workspace"
+          else
+            echo "No assets/ folder found"
+          fi
+
+      - name: Build and archive
+        script: |
+          xcode-project build-ipa \
+            -v \
+            --disable-xcpretty \
+            --project "Demo/Demo.xcodeproj" \
+            --scheme "Demo"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Team (GlazingKey Field)

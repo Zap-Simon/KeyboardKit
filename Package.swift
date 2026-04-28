@@ -33,7 +33,7 @@ let package = Package(
         .target(
             name: "KeyboardKitDependencies",
             dependencies: ["LicenseKit"],
-            path: "Dependencies",
+            path: "Dependencies"
         )
     ]
 )

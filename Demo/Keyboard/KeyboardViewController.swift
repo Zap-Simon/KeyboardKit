@@ -1,106 +1,272 @@
-//
-//  KeyboardViewController.swift
-//  KeyboardPro
-//
-//  Created by Daniel Saidi on 2023-02-13.
-//  Copyright © 2023-2025 Daniel Saidi. All rights reserved.
-//
-
-import KeyboardKit
+import UIKit
 import SwiftUI
 
-/// This keyboard shows how to set up `KeyboardKit Pro` with
-/// a `KeyboardApp` and customize the keyboard.
-///
-/// This keyboard lets you test open-source and Pro features,
-/// like fully localized keyboards, iPad Pro layouts, emojis,
-/// autocomplete, themes, etc.
-///
-/// For app-specific features, check out the main app target.
-class KeyboardViewController: KeyboardInputViewController {
+private final class FixedHeightKeyboardInputView: UIInputView {
+    private let fixedHeight: CGFloat
 
-    /// ‼️ If this doesn't log when the debugger is attached,
-    /// there is a memory leak.
-    deinit {
-        NSLog("__DEINIT__")
+    init(height: CGFloat) {
+        self.fixedHeight = height
+        super.init(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: height), inputViewStyle: .keyboard)
+        allowsSelfSizing = false
     }
 
-
-    /// This function is called when the controller launches,
-    /// and is where you can set up KeyboardKit for your app.
-    override func viewWillSetupKeyboardKit() {
-
-        /// 🧪 Enable experimental features
-        Experiment.keyboardDictation.setIsEnabled(true)
-
-        // Set up the keyboard with the demo-specific app.
-        setupKeyboardKit(for: .keyboardKitDemo) { [weak self] result in
-
-            /// 💡 If the setup worked, we can customize the
-            /// keyboard. If not, we should handle the error.
-            switch result {
-            case .success:
-                self?.setupDemoServices()
-                self?.setupDemoState()
-            case .failure(let error):
-                print(error)
-            }
-        }
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
-    /// This function is called when the controller needs to
-    /// redraw the keyboard view, and is where you can setup
-    /// a custom view or customize the standard KeyboardView.
-    override func viewWillSetupKeyboardView() {
-
-        // ⚠️ Don't call `super.viewWillSetupKeyboardView()`.
-        // super.viewWillSetupKeyboardView()
-
-        // Set up a custom, demo-specific keyboard view.
-        setupKeyboardView { /*[weak self]*/ controller in
-
-            // 💡 This demo keyboard view will apply various
-            // view modifiers based on this controller state.
-            DemoKeyboardView(
-                services: controller.services,
-                state: controller.state
-            )
-        }
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: fixedHeight)
     }
 }
 
-private extension KeyboardViewController {
+class KeyboardViewController: UIInputViewController {
 
-    /// Make demo-specific changes to your keyboard services.
-    func setupDemoServices() {
+    private var hostingController: UIHostingController<KeyboardRootView>?
+    private var hostingViewConstraints: [NSLayoutConstraint] = []
+    private var heightConstraint: NSLayoutConstraint?
+    private var placeholderView: UIView?
+    private let presetsStore = PresetsStore()
+    private let diagnostics = KeyboardDiagnostics()
+    private let renderState = KeyboardRenderState()
+    private let keyboardHeight: CGFloat = 392
+    private var didRevealHostedKeyboard = false
+    private var isHostingViewAttached = false
+    private var isRevealCheckScheduled = false
+    private var appearanceGeneration = 0
+    private var revealRetryCount = 0
+    private let maxRevealRetries = 8
+    private let lifecycleDiagnosticsEnabled = false
 
-        // 💡 Set up am action handler for our rocket button.
-        services.actionHandler = DemoActionHandler(
-            controller: self
+    override var preferredContentSize: CGSize {
+        get { CGSize(width: UIView.noIntrinsicMetric, height: keyboardHeight) }
+        set { }
+    }
+
+    override func loadView() {
+        let keyboardView = FixedHeightKeyboardInputView(height: keyboardHeight)
+        keyboardView.backgroundColor = .clear
+        keyboardView.isOpaque = false
+        heightConstraint = keyboardView.heightAnchor.constraint(equalToConstant: keyboardHeight)
+        heightConstraint?.priority = .required
+        heightConstraint?.isActive = true
+        view = keyboardView
+        logLifecycle("loadView")
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        appearanceGeneration &+= 1
+        didRevealHostedKeyboard = false
+        isHostingViewAttached = false
+        isRevealCheckScheduled = false
+        revealRetryCount = 0
+        renderState.isContentVisible = false
+        detachHostingViewIfNeeded()
+        ensurePlaceholderView()
+        enforceKeyboardHeight()
+        DispatchQueue.main.async { [weak self] in
+            self?.scheduleRevealCheck(reason: "viewWillAppear")
+        }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        appearanceGeneration &+= 1
+        isRevealCheckScheduled = false
+        revealRetryCount = 0
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        scheduleRevealCheck(reason: "viewDidAppear")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        view.backgroundColor = .clear
+        view.isOpaque = false
+        inputView?.backgroundColor = .clear
+        inputView?.isOpaque = false
+        ensurePlaceholderView()
+
+        enforceKeyboardHeight()
+        (inputView ?? view).layoutIfNeeded()
+        view.layoutIfNeeded()
+    }
+
+    override func updateViewConstraints() {
+        enforceKeyboardHeight()
+        super.updateViewConstraints()
+    }
+
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        enforceKeyboardHeight()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        enforceKeyboardHeight()
+
+        guard !didRevealHostedKeyboard,
+              view.bounds.width > 0,
+              view.bounds.height > 0
+        else { return }
+
+        scheduleRevealCheck(reason: "layout")
+    }
+
+    private func scheduleRevealCheck(reason: String) {
+        guard !didRevealHostedKeyboard,
+              !isRevealCheckScheduled,
+              view.bounds.width > 0,
+              view.bounds.height > 0
+        else { return }
+
+        let generation = appearanceGeneration
+        isRevealCheckScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.runRevealCheck(for: generation, reason: reason)
+        }
+    }
+
+    private func runRevealCheck(for generation: Int, reason: String) {
+        guard generation == appearanceGeneration else { return }
+
+        isRevealCheckScheduled = false
+
+        guard !didRevealHostedKeyboard,
+              view.bounds.width > 0,
+              view.bounds.height > 0
+        else { return }
+
+        if isKeyboardHeightSettled {
+            attachHostingViewIfNeeded()
+            didRevealHostedKeyboard = true
+            revealRetryCount = 0
+            UIView.performWithoutAnimation {
+                renderState.isContentVisible = true
+                view.layoutIfNeeded()
+            }
+            return
+        }
+
+        guard revealRetryCount < maxRevealRetries else { return }
+
+        revealRetryCount += 1
+        logLifecycle("revealRetry\(revealRetryCount):\(reason)")
+        scheduleRevealCheck(reason: "retry")
+    }
+
+    private func enforceKeyboardHeight() {
+        heightConstraint?.constant = keyboardHeight
+        view.invalidateIntrinsicContentSize()
+        inputView?.invalidateIntrinsicContentSize()
+    }
+
+    private func ensurePlaceholderView() {
+        guard placeholderView == nil, let containerView = inputView ?? view else { return }
+
+        let placeholderView = UIView()
+        placeholderView.backgroundColor = UIColor.secondarySystemBackground
+        placeholderView.isOpaque = true
+        placeholderView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(placeholderView)
+        NSLayoutConstraint.activate([
+            placeholderView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            placeholderView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            placeholderView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            placeholderView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+        ])
+        self.placeholderView = placeholderView
+    }
+
+    private func attachHostingViewIfNeeded() {
+        guard !isHostingViewAttached,
+              let containerView = inputView ?? view
+        else { return }
+
+        let hostingController = makeHostingControllerIfNeeded()
+        let hostingView = hostingController.view!
+
+        hostingView.removeFromSuperview()
+        containerView.addSubview(hostingView)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        hostingViewConstraints = [
+            hostingView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            hostingView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            hostingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+        ]
+        NSLayoutConstraint.activate(hostingViewConstraints)
+        placeholderView?.removeFromSuperview()
+        placeholderView = nil
+        isHostingViewAttached = true
+    }
+
+    private func detachHostingViewIfNeeded() {
+        hostingViewConstraints.forEach { $0.isActive = false }
+        hostingViewConstraints.removeAll()
+
+        guard let hostingController else { return }
+
+        hostingController.view.removeFromSuperview()
+        isHostingViewAttached = false
+    }
+
+    private func makeHostingControllerIfNeeded() -> UIHostingController<KeyboardRootView> {
+        if let hostingController {
+            return hostingController
+        }
+
+        let rootView = KeyboardRootView(
+            presetsStore: presetsStore,
+            diagnostics: diagnostics,
+            renderState: renderState,
+            keyboardHeight: keyboardHeight,
+            needsInputModeSwitch: needsInputModeSwitchKey,
+            onInsert: { [weak self] text in
+                self?.textDocumentProxy.insertText(text)
+            },
+            onSwitchKeyboard: { [weak self] in
+                self?.advanceToNextInputMode()
+            },
+            onDelete: { [weak self] in
+                self?.textDocumentProxy.deleteBackward()
+            }
         )
+
+        let hostingController = UIHostingController(rootView: rootView)
+        if #available(iOS 16.0, *) {
+            hostingController.sizingOptions = []
+        }
+        hostingController.view.backgroundColor = .clear
+        hostingController.view.isOpaque = false
+        hostingController.view.clipsToBounds = true
+        addChild(hostingController)
+        hostingController.didMove(toParent: self)
+        self.hostingController = hostingController
+        return hostingController
     }
 
-    /// Make demo-specific changes to your keyboard's state.
-    ///
-    /// 💡 Many configurations and settings can be made from
-    /// the demo keyboard's custom toolbar.
-    func setupDemoState() {
-
-        /// 💡 Set up which locale to use to present locales.
-        state.keyboardContext.localePresentationLocale = .current
-
-        /// 💡 Configure the space key's behavior and action.
-        state.keyboardContext.settings.spacebarLongPressBehavior = .moveInputCursor
-        // state.keyboardContext.settings.spacebarContextMenuLeading = .locale
-        state.keyboardContext.settings.spacebarMenuTrailing = .locale
-
-        /// 💡 Disable autocorrection.
-        // state.autocompleteContext.isAutocorrectEnabled = false
-
-        /// 💡 Setup demo-specific haptic & audio feedback.
-        let feedback = state.feedbackContext
-        feedback.registerCustomFeedback(.haptic(.selectionChanged, for: .repeat, on: .rocket))
-        feedback.registerCustomFeedback(.audio(.rocketFuse, for: .press, on: .rocket))
-        feedback.registerCustomFeedback(.audio(.rocketLaunch, for: .release, on: .rocket))
+    private var isKeyboardHeightSettled: Bool {
+        abs(view.bounds.height - keyboardHeight) <= 0.5 &&
+        abs((inputView?.bounds.height ?? keyboardHeight) - keyboardHeight) <= 0.5
     }
+
+    private func logLifecycle(_ event: String) {
+        guard lifecycleDiagnosticsEnabled else { return }
+
+        let viewHeight = String(format: "%.1f", view.bounds.height)
+        let inputHeight = String(format: "%.1f", inputView?.bounds.height ?? -1)
+        let hostedHeight = String(format: "%.1f", hostingController?.view.bounds.height ?? -1)
+        let viewWidth = String(format: "%.1f", view.bounds.width)
+        diagnostics.record("\(event) v:\(viewWidth)x\(viewHeight) i:\(inputHeight) h:\(hostedHeight)")
+    }
+
+    override func textWillChange(_ textInput: UITextInput?) {}
+    override func textDidChange(_ textInput: UITextInput?) {}
 }

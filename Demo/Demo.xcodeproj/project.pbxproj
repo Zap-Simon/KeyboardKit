@@ -528,10 +528,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.keyboardkit.demo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.glazingkey.field;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -548,11 +548,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.keyboardkit.demo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.glazingkey.field;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -567,7 +567,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Keyboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Demo;
+				INFOPLIST_KEY_CFBundleDisplayName = "GlazingKey Field";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Daniel Saidi. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -575,13 +575,13 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.keyboardkit.demo.Keyboard;
+				PRODUCT_BUNDLE_IDENTIFIER = com.glazingkey.field.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -596,7 +596,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Keyboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Demo;
+				INFOPLIST_KEY_CFBundleDisplayName = "GlazingKey Field";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Daniel Saidi. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -604,12 +604,12 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.keyboardkit.demo.Keyboard;
+				PRODUCT_BUNDLE_IDENTIFIER = com.glazingkey.field.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
