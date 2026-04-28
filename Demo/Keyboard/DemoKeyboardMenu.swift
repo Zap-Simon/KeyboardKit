@@ -50,7 +50,7 @@ struct GlazingResult {
     var formattedRecord: String {
         let sightLabel = calculationSource == .sight ? "Sight*" : "Sight"
         let tightLabel = calculationSource == .tight ? "Tight*" : "Tight"
-        [
+        return [
             "1@ \(cutSizeOnly)",
             "",
             "\(sightLabel): \(sightSize)",
