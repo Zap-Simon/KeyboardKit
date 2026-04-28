@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private enum KeyboardLayoutMetrics {
     static let modeSelectorHeight: CGFloat = 34
@@ -293,13 +294,53 @@ private struct KeyboardMaterialShellView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .overlay(colorScheme == .dark ? Color.black.opacity(0.15) : Color.white.opacity(0.08))
-            .overlay(
-                Rectangle()
-                    .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.18), lineWidth: 1)
+        ZStack {
+            KeyboardGlassBlurView(
+                blurStyle: colorScheme == .dark ? .systemThinMaterialDark : .systemUltraThinMaterialLight
             )
+
+            LinearGradient(
+                colors: KeyboardGlassTheme.shellTint(for: colorScheme),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(colorScheme == .dark ? 0.18 : 0.34),
+                    Color.white.opacity(0.02),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            RadialGradient(
+                colors: [
+                    Color.white.opacity(colorScheme == .dark ? 0.08 : 0.18),
+                    Color.clear
+                ],
+                center: .topLeading,
+                startRadius: 8,
+                endRadius: 260
+            )
+        }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.18 : 0.30))
+                .frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            LinearGradient(
+                colors: [
+                    Color.clear,
+                    Color.black.opacity(colorScheme == .dark ? 0.24 : 0.08)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 18)
+        }
     }
 }
 
@@ -311,13 +352,15 @@ struct KeyboardPanelBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(colorScheme == .dark ? Color.black.opacity(darkOverlayOpacity) : Color.white.opacity(lightOverlayOpacity))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.24), lineWidth: 1)
-            )
+        KeyboardGlassCardBackground(
+            cornerRadius: cornerRadius,
+            blurStyle: colorScheme == .dark ? .systemChromeMaterialDark : .systemThinMaterialLight,
+            tint: KeyboardGlassTheme.panelTint(for: colorScheme),
+            tintOpacity: colorScheme == .dark ? darkOverlayOpacity * 0.92 : lightOverlayOpacity * 1.15,
+            shadowOpacity: colorScheme == .dark ? 0.18 : 0.08,
+            highlightOpacity: colorScheme == .dark ? 0.12 : 0.24,
+            edgeOpacity: colorScheme == .dark ? 0.10 : 0.22
+        )
     }
 }
 
@@ -332,25 +375,153 @@ private struct KeyboardKeyBackground: View {
         ZStack {
             if isAccent {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.accentColor)
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10))
-            } else {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.thinMaterial)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor.opacity(colorScheme == .dark ? 0.96 : 0.90),
+                                Color.accentColor.opacity(colorScheme == .dark ? 0.74 : 0.68)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
-                        colorScheme == .dark
-                        ? Color.black.opacity(isSpecial ? 0.20 : 0.12)
-                        : Color.white.opacity(isSpecial ? 0.12 : 0.06)
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.18 : 0.30),
+                                Color.clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.22), lineWidth: 1)
+            } else if isSpecial {
+                KeyboardGlassCardBackground(
+                    cornerRadius: cornerRadius,
+                    blurStyle: colorScheme == .dark ? .systemThickMaterialDark : .systemThinMaterialLight,
+                    tint: KeyboardGlassTheme.specialKeyTint(for: colorScheme),
+                    tintOpacity: colorScheme == .dark ? 0.18 : 0.15,
+                    shadowOpacity: colorScheme == .dark ? 0.20 : 0.08,
+                    highlightOpacity: colorScheme == .dark ? 0.14 : 0.28,
+                    edgeOpacity: colorScheme == .dark ? 0.12 : 0.24
+                )
+            } else {
+                KeyboardPanelBackground(
+                    cornerRadius: cornerRadius,
+                    lightOverlayOpacity: 0.10,
+                    darkOverlayOpacity: 0.18
+                )
             }
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.22), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.24 : 0.10), radius: isAccent ? 2 : 1.5, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.09), radius: isAccent ? 3 : 2, x: 0, y: 1)
+    }
+}
+
+private struct KeyboardGlassCardBackground: View {
+    let cornerRadius: CGFloat
+    let blurStyle: UIBlurEffect.Style
+    let tint: Color
+    let tintOpacity: CGFloat
+    let shadowOpacity: CGFloat
+    let highlightOpacity: CGFloat
+    let edgeOpacity: CGFloat
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.clear)
+            .background {
+                KeyboardGlassBlurView(blurStyle: blurStyle)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                tint.opacity(tintOpacity),
+                                tint.opacity(tintOpacity * 0.55)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(highlightOpacity),
+                                Color.white.opacity(0.01),
+                                Color.clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(edgeOpacity),
+                                Color.white.opacity(edgeOpacity * 0.45),
+                                Color.black.opacity(colorScheme == .dark ? 0.14 : 0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .shadow(color: Color.black.opacity(shadowOpacity), radius: 10, x: 0, y: 5)
+    }
+}
+
+private enum KeyboardGlassTheme {
+    static func shellTint(for colorScheme: ColorScheme) -> [Color] {
+        switch colorScheme {
+        case .dark:
+            return [
+                Color(red: 0.16, green: 0.22, blue: 0.28).opacity(0.58),
+                Color(red: 0.08, green: 0.12, blue: 0.16).opacity(0.72)
+            ]
+        default:
+            return [
+                Color(red: 0.95, green: 0.98, blue: 1.00).opacity(0.72),
+                Color(red: 0.82, green: 0.90, blue: 0.95).opacity(0.44)
+            ]
+        }
+    }
+
+    static func panelTint(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+        ? Color(red: 0.36, green: 0.45, blue: 0.55)
+        : Color(red: 0.87, green: 0.93, blue: 0.97)
+    }
+
+    static func specialKeyTint(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+        ? Color(red: 0.31, green: 0.39, blue: 0.48)
+        : Color(red: 0.91, green: 0.95, blue: 0.99)
+    }
+}
+
+private struct KeyboardGlassBlurView: UIViewRepresentable {
+    let blurStyle: UIBlurEffect.Style
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: blurStyle)
     }
 }
 
@@ -690,6 +861,8 @@ struct CompactFieldCellView: View {
     let isActive: Bool
     let onTap: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var resolvedText: String {
         if expr.isEmpty { return "" }
         if let value = ExpressionParser.evaluate(expr), String(value) != expr {
@@ -724,7 +897,12 @@ struct CompactFieldCellView: View {
         }
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke(isActive ? Color.accentColor.opacity(0.85) : Color.white.opacity(0.22), lineWidth: 1.5)
+                .stroke(
+                    isActive
+                    ? Color.accentColor.opacity(0.85)
+                    : (colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)),
+                    lineWidth: 1.5
+                )
         )
         .onTapGesture { onTap() }
     }
@@ -771,7 +949,7 @@ struct CutSummaryView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .frame(height: 52)
+        .frame(height: 58)
         .background(KeyboardPanelBackground(cornerRadius: 12))
         .cornerRadius(12)
     }
@@ -822,7 +1000,7 @@ struct WeightSummaryView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .frame(height: 52)
+        .frame(height: 58)
         .background(KeyboardPanelBackground(cornerRadius: 12))
         .cornerRadius(12)
     }
