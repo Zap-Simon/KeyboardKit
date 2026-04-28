@@ -6,7 +6,7 @@ workflows:
       xcode: 26.4.1
       ios_signing:
         certificates:
-          - Distribution-GlazingKeyField
+          - Distribution-GlazingKey
         provisioning_profiles:
           - glazingkey-field
           - glazingkey-field-keyboard
