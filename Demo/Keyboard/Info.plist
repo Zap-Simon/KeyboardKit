@@ -22,6 +22,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GlazingKey Field uses the microphone when you choose to dictate measurements or notes in the keyboard.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>GlazingKey Field uses speech recognition to turn dictated measurements or notes into text when you choose to use dictation in the keyboard.</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
