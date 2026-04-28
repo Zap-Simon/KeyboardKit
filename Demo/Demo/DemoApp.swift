@@ -1,11 +1,14 @@
 import SwiftUI
+import KeyboardKit
 
 @main
 struct GlazingKeyFieldApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeScreen()
+            KeyboardAppView(for: .glazingKeyField) {
+                HomeScreen()
+            }
         }
     }
 }

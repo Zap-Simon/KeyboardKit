@@ -28,17 +28,16 @@ extension KeyboardApp {
     /// an app and its keyboard. It doesn't work in the demo.
     /// 
     /// See `DemoApp.swift` for more info about the demo app.
-    static var keyboardKitDemo: KeyboardApp {
+    static var glazingKeyField: KeyboardApp {
         .init(
-            name: "KeyboardKit Demo",
+            name: "GlazingKey Field",
             // licenseKey: "299B33C6-061C-4285-8189-90525BCAF098",  // Sets up KeyboardKit Pro!
-            appGroupId: "group.com.keyboardkit.demo",               // Sets up App Group data sync
             locales: .keyboardKitSupported,                         // Sets up the enabled locales
             autocomplete: .init(                                    // Sets up custom autocomplete
                 // nextWordPredictionRequest: .claude(apiKey: "")   // Sets up AI-based prediction (add your own key)
             ),
             deepLinks: .init(
-                app: "kkdemo://"                                    // Defines how to open the app
+                app: "glazingkeyfield://"                           // Defines how to open the app
                 // dictation: "kkdemo://dictation"                  // You can customize any default deep link
             )
         )

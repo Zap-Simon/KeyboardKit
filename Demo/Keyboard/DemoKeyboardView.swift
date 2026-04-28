@@ -13,7 +13,7 @@ enum KeyboardPreferences {
 }
 
 final class KeyboardRenderState: ObservableObject {
-    @Published var isContentVisible = false
+    @Published var isContentVisible = true
 }
 
 final class KeyboardDiagnostics: ObservableObject {
