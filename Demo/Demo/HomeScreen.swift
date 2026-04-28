@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct HomeScreen: View {
 
@@ -201,27 +200,9 @@ private extension HomeScreen {
 }
 
 private struct MaterialScreenBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
-        LinearGradient(
-            colors: ScreenTheme.backgroundColors(for: colorScheme),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            RadialGradient(
-                colors: [
-                    Color.white.opacity(colorScheme == .dark ? 0.06 : 0.18),
-                    Color.clear
-                ],
-                center: .topLeading,
-                startRadius: 20,
-                endRadius: 420
-            )
-        )
-        .overlay(colorScheme == .dark ? Color.black.opacity(0.18) : Color.white.opacity(0.06))
-        .ignoresSafeArea()
+        Color(.systemGroupedBackground)
+            .ignoresSafeArea()
     }
 }
 
@@ -233,15 +214,9 @@ private struct MaterialScreenCardBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ScreenGlassSurface(
-            cornerRadius: cornerRadius,
-            blurStyle: colorScheme == .dark ? .systemChromeMaterialDark : .systemThinMaterialLight,
-            tint: tint,
-            tintOpacity: colorScheme == .dark ? 0.18 : 0.12,
-            shadowOpacity: colorScheme == .dark ? shadowOpacity * 1.15 : shadowOpacity,
-            highlightOpacity: colorScheme == .dark ? 0.12 : 0.26,
-            edgeOpacity: colorScheme == .dark ? 0.10 : 0.24
-        )
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color(.secondarySystemGroupedBackground))
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0 : shadowOpacity), radius: 12, x: 0, y: 4)
     }
 }
 
@@ -249,96 +224,13 @@ private struct MaterialScreenInsetBackground: View {
     let cornerRadius: CGFloat
     let tint: Color
 
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        ScreenGlassSurface(
-            cornerRadius: cornerRadius,
-            blurStyle: colorScheme == .dark ? .systemThinMaterialDark : .systemUltraThinMaterialLight,
-            tint: tint,
-            tintOpacity: colorScheme == .dark ? 0.14 : 0.10,
-            shadowOpacity: colorScheme == .dark ? 0.10 : 0.05,
-            highlightOpacity: colorScheme == .dark ? 0.10 : 0.22,
-            edgeOpacity: colorScheme == .dark ? 0.09 : 0.20
-        )
-    }
-}
-
-private struct ScreenGlassSurface: View {
-    let cornerRadius: CGFloat
-    let blurStyle: UIBlurEffect.Style
-    let tint: Color
-    let tintOpacity: CGFloat
-    let shadowOpacity: CGFloat
-    let highlightOpacity: CGFloat
-    let edgeOpacity: CGFloat
-
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.clear)
-            .background {
-                ScreenGlassBlurView(blurStyle: blurStyle)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                tint.opacity(tintOpacity),
-                                tint.opacity(tintOpacity * 0.55)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(highlightOpacity),
-                                Color.white.opacity(0.01),
-                                Color.clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(edgeOpacity),
-                                Color.white.opacity(edgeOpacity * 0.46),
-                                Color.black.opacity(colorScheme == .dark ? 0.14 : 0.05)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            }
-            .shadow(color: Color.black.opacity(shadowOpacity), radius: 18, x: 0, y: 10)
+            .fill(Color(.tertiarySystemGroupedBackground))
     }
 }
 
-private struct ScreenGlassBlurView: UIViewRepresentable {
-    let blurStyle: UIBlurEffect.Style
 
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: blurStyle)
-    }
-}
 
 private enum ScreenTheme {
     static let accent = Color(red: 28 / 255, green: 144 / 255, blue: 175 / 255)

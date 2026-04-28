@@ -29,11 +29,6 @@ private struct AccentButtonBackground: View {
             if isEnabled {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.accentColor)
-                    .overlay(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.22), lineWidth: 1)
-                    )
             } else {
                 SettingsSurfaceBackground(cornerRadius: cornerRadius, lightOverlayOpacity: 0.04, darkOverlayOpacity: 0.10)
                     .opacity(0.65)
