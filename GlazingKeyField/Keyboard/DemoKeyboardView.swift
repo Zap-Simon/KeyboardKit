@@ -551,7 +551,7 @@ private struct KeyboardRootSizeReporter: View {
                 .onAppear {
                     diagnostics.updateRootSize(proxy.size)
                 }
-                .onChange(of: proxy.size) { newSize in
+                .onChange(of: proxy.size) { _, newSize in
                     diagnostics.updateRootSize(newSize)
                 }
         }

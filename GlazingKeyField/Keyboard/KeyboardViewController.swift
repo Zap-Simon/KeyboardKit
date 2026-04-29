@@ -80,11 +80,8 @@ class KeyboardViewController: KeyboardInputViewController {
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },
                 onDelete: { controller.textDocumentProxy.deleteBackward() },
-                onDismiss: {
-                    UIApplication.shared.sendAction(
-                        #selector(UIResponder.resignFirstResponder),
-                        to: nil, from: nil, for: nil
-                    )
+                onDismiss: { [weak controller] in
+                    controller?.view.window?.endEditing(true)
                 }
             )
         }
