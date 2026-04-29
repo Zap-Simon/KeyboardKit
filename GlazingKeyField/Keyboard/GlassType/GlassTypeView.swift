@@ -104,17 +104,19 @@ struct GlassTypeTabView: View {
                     HStack(spacing: 4) {
                         ForEach([6, 8, 10, 12, 14, 16] as [Int], id: \.self) { mm in
                             let sel = glassState.spacerBar?.thicknessMm == mm
-                            Button {
-                                glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {
+                            Button {                                glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {
                                     $0.thicknessMm == mm &&
                                     ($0.colour == (glassState.spacerBar?.colour ?? .black))
                                 } ?? GlassTypeCatalogue.spacerBars.first { $0.thicknessMm == mm }
                             } label: {
-                                Text("\(mm)mm")
+                                let label = String(mm) + "mm"
+                                Text(label)
                                     .font(.system(size: 10, weight: .bold))
                                     .padding(.horizontal, 6)
                                     .frame(height: 22)
-                                    .background(sel ? Color.accentColor : KeyboardCardBackground(cornerRadius: 6))
+                                    .background {
+                                        if sel { Color.accentColor } else { KeyboardCardBackground(cornerRadius: 6) }
+                                    }
                                     .foregroundColor(sel ? .white : .primary)
                                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                             }
@@ -137,7 +139,9 @@ struct GlassTypeTabView: View {
                                 .font(.system(size: 9, weight: .semibold))
                                 .padding(.horizontal, 5)
                                 .frame(height: 18)
-                                .background(sel ? Color.accentColor : KeyboardCardBackground(cornerRadius: 5))
+                                .background {
+                                    if sel { Color.accentColor } else { KeyboardCardBackground(cornerRadius: 5) }
+                                }
                                 .foregroundColor(sel ? .white : .primary)
                                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                         }
