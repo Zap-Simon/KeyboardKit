@@ -534,6 +534,130 @@ private extension HomeScreen {
             }
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
+            // Numpad comparison tile
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "textformat.123")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(ScreenTheme.accent)
+                    Text("Built for numbers")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(ScreenTheme.ink)
+                }
+
+                HStack(spacing: 10) {
+                    // Standard keyboard — bad
+                    VStack(spacing: 6) {
+                        HStack(spacing: 3) {
+                            ForEach(["1","2","3","4","5"], id: \.self) { d in
+                                Text(d)
+                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 16)
+                                    .background(Color(.tertiarySystemFill))
+                                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+                            }
+                        }
+                        HStack(spacing: 3) {
+                            ForEach(["Q","W","E","R","T"], id: \.self) { l in
+                                Text(l)
+                                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 20)
+                                    .background(Color(.tertiarySystemFill))
+                                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+                            }
+                        }
+                        HStack(spacing: 3) {
+                            ForEach(["A","S","D","F","G"], id: \.self) { l in
+                                Text(l)
+                                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 20)
+                                    .background(Color(.tertiarySystemFill))
+                                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+                            }
+                        }
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.red)
+                            Text("Numbers buried in top row — small targets, fat-finger errors")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(ScreenTheme.inkSoft)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 2)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.tertiarySystemFill).opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                    )
+
+                    // GlazingKey — good
+                    VStack(spacing: 6) {
+                        HStack(spacing: 3) {
+                            ForEach(["7","8","9"], id: \.self) { d in
+                                Text(d)
+                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 26)
+                                    .background(ScreenTheme.accent.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            }
+                        }
+                        HStack(spacing: 3) {
+                            ForEach(["4","5","6"], id: \.self) { d in
+                                Text(d)
+                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 26)
+                                    .background(ScreenTheme.accent.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            }
+                        }
+                        HStack(spacing: 3) {
+                            ForEach(["1","2","3"], id: \.self) { d in
+                                Text(d)
+                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 26)
+                                    .background(ScreenTheme.accent.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            }
+                        }
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(ScreenTheme.accent)
+                            Text("Full dedicated numpad — large keys, gloves on, one hand")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(ScreenTheme.inkSoft)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 2)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(ScreenTheme.accent.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(ScreenTheme.accent.opacity(0.25), lineWidth: 1)
+                    )
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
             // 2×2 bento grid
             HStack(spacing: 10) {
                 bentoTile(
@@ -560,28 +684,6 @@ private extension HomeScreen {
                     body: "No internet, no accounts. Measurements and history never leave the device. Works in basements, sites, and poor signal areas."
                 )
             }
-
-            // Speed note
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(ScreenTheme.accent)
-                    Text("Speed note")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(ScreenTheme.ink)
-                }
-                Text("Entering digits is slightly slower than a full keyboard — but every press of ✓ eliminates a calculator step, a clipboard paste, manual formatting, and the risk of a transcription error. For most jobs the time saving is in post-processing, not input.")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(ScreenTheme.inkSoft)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                MaterialScreenInsetBackground(cornerRadius: 12, tint: ScreenTheme.panelTint(for: colorScheme))
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
