@@ -109,6 +109,8 @@ final class KeyboardState: ObservableObject {
     }
 
     func appendToActive(_ char: String) {
+        // Measurement fields are numbers-only; silently reject anything that isn't a digit.
+        guard char.allSatisfy({ $0.isNumber }) else { return }
         let newValue = value(for: activeField) + char
         setValue(newValue, for: activeField)
         scheduleAutoAdvance(for: newValue)
@@ -1224,7 +1226,7 @@ struct NumpadView: View {
         [.digit("7"), .digit("8"), .digit("9"), .lineBreak],
     ]
     // Bottom row: globe + 0 + insert (rendered at 2× width)
-    private let bottomRow: [KeypadKey] = [.globe, .digit("0")]
+    private let bottomRow: [KeypadKey] = [.abc, .digit("0")]
 
     var body: some View {
         GeometryReader { proxy in
@@ -1292,6 +1294,8 @@ struct NumpadView: View {
             insertRecord(full: true)
         case .globe:
             onSwitchKeyboard()
+        case .abc:
+            onSwitchKeyboard()
         case .settings:
             onSettings()
         }
@@ -1331,6 +1335,7 @@ enum KeypadKey: Equatable {
     case spacer
     case insert
     case globe
+    case abc
     case settings
 }
 
@@ -1350,13 +1355,14 @@ struct KeypadButtonView: View {
         case .spacer: return ""
         case .insert: return "✓"
         case .globe: return "🌐"
+        case .abc: return "ABC"
         case .settings: return "⚙️"
         }
     }
 
     private var isSpecial: Bool {
         switch key {
-        case .hostDelete, .lineBreak, .globe, .settings:
+        case .hostDelete, .lineBreak, .globe, .abc, .settings:
             return true
         default:
             return false
@@ -1368,7 +1374,7 @@ struct KeypadButtonView: View {
     }
 
     private var isGlobe: Bool {
-        key == .globe
+        key == .globe || key == .abc
     }
 
     var body: some View {
