@@ -23,18 +23,16 @@ struct GlassTypeTabView: View {
             ForEach(["Single", "DGU"], id: \.self) { label in
                 let isDGU  = label == "DGU"
                 let active = isDGU == (glassState.buildMode == .dgu)
-                Button {
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.85)) {
-                        glassState.setBuildMode(isDGU ? .dgu : .single)
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .foregroundColor(active ? .primary : .secondary)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.22, dampingFraction: 0.85)) {
+                            glassState.setBuildMode(isDGU ? .dgu : .single)
+                        }
                     }
-                } label: {
-                    Text(label)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                }
-                .foregroundColor(active ? .primary : .secondary)
-                .buttonStyle(.plain)
             }
         }
         .frame(height: 28)
@@ -95,7 +93,7 @@ struct GlassTypeTabView: View {
                 glassState.clearSearch()
             }
 
-            // Spacer bar chip
+            // Spacer bar chip column
             VStack(spacing: 2) {
                 Text("Spacer")
                     .font(.system(size: 8, weight: .bold))
@@ -125,31 +123,35 @@ struct GlassTypeTabView: View {
                     }
                     .padding(.horizontal, 2)
                 }
-                // Colour chips
-                HStack(spacing: 4) {
-                    ForEach(SpacerColour.allCases) { col in
-                        let sel = glassState.spacerBar?.colour == col
-                        Button {
-                            let mm = glassState.spacerBar?.thicknessMm ?? 10
-                            glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {
-                                $0.thicknessMm == mm && $0.colour == col
-                            } ?? GlassTypeCatalogue.spacerBars.first { $0.colour == col }
-                        } label: {
-                            Text(col.displayTitle)
-                                .font(.system(size: 9, weight: .semibold))
-                                .padding(.horizontal, 5)
-                                .frame(height: 18)
-                                .background {
-                                    if sel { Color.accentColor } else { KeyboardCardBackground(cornerRadius: 5) }
-                                }
-                                .foregroundColor(sel ? .white : .primary)
-                                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                // Colour chips — scrollable so "Black Thermal" doesn't overflow
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(SpacerColour.allCases) { col in
+                            let sel = glassState.spacerBar?.colour == col
+                            Button {
+                                let mm = glassState.spacerBar?.thicknessMm ?? 10
+                                glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {
+                                    $0.thicknessMm == mm && $0.colour == col
+                                } ?? GlassTypeCatalogue.spacerBars.first { $0.colour == col }
+                            } label: {
+                                Text(col.displayTitle)
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 5)
+                                    .frame(height: 18)
+                                    .background {
+                                        if sel { Color.accentColor } else { KeyboardCardBackground(cornerRadius: 5) }
+                                    }
+                                    .foregroundColor(sel ? .white : .primary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 2)
                 }
             }
-            .frame(minWidth: 80)
+            .frame(width: 90)
 
             glassSlot(
                 label: "Inner",

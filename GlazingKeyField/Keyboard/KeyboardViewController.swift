@@ -70,7 +70,9 @@ class KeyboardViewController: KeyboardInputViewController {
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },
                 onDelete: { controller.textDocumentProxy.deleteBackward() },
-                onDismiss: {}
+                onDismiss: { [weak controller] in
+                    controller?.view.window?.endEditing(true)
+                }
             )}
             return KeyboardRootView(
                 presetsStore: self.presetsStore,
@@ -80,8 +82,8 @@ class KeyboardViewController: KeyboardInputViewController {
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },
                 onDelete: { controller.textDocumentProxy.deleteBackward() },
-                onDismiss: { [weak controller] in
-                    controller?.view.window?.endEditing(true)
+                onDismiss: { [weak self] in
+                    self?.dismissKeyboard()
                 }
             )
         }

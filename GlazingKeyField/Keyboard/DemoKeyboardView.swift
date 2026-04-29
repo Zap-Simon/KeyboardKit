@@ -358,82 +358,76 @@ struct KeyboardRootView: View {
     }
 
     private var keyboardContent: some View {
-        VStack(spacing: KeyboardLayoutMetrics.sectionSpacing) {
-            // ── Utility icons flanking the mode selector ──────────────────────
-            HStack(spacing: 4) {
-                // Saved logins button
-                Button {
-                    state.showCredentials = true
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(credentialStore.credentials.isEmpty
-                                  ? Color.clear
-                                  : Color.accentColor.opacity(0.12))
-                            .frame(width: 22, height: 22)
-                        Image(systemName: "key.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(credentialStore.credentials.isEmpty ? .secondary : .accentColor)
-                    }
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
+        VStack(spacing: 0) {
+            // ── Mode tabs + utility icons (single row) ───────────────────────
+            HStack(spacing: 6) {
                 ModeSelectorView(state: state)
 
-                // History button
-                Button {
-                    state.showClipboard = true
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(clipboardStore.entries.isEmpty
-                                  ? Color.clear
-                                  : Color.accentColor.opacity(0.12))
-                            .frame(width: 22, height: 22)
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(clipboardStore.entries.isEmpty ? .secondary : .accentColor)
-                    }
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
+                // Credentials
+                Button { state.showCredentials = true } label: {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(credentialStore.credentials.isEmpty ? .secondary : .accentColor)
+                        .frame(width: 26, height: 26)
+                        .background(
+                            Circle().fill(credentialStore.credentials.isEmpty
+                                ? Color.clear
+                                : Color.accentColor.opacity(0.12))
+                        )
                 }
                 .buttonStyle(.plain)
 
-                // Dismiss keyboard button
+                // History
+                Button { state.showClipboard = true } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(clipboardStore.entries.isEmpty ? .secondary : .accentColor)
+                        .frame(width: 26, height: 26)
+                        .background(
+                            Circle().fill(clipboardStore.entries.isEmpty
+                                ? Color.clear
+                                : Color.accentColor.opacity(0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                // Dismiss
                 Button(action: onDismiss) {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+                        .frame(width: 26, height: 26)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 8)
             .padding(.top, 8)
+            .padding(.bottom, 4)
 
-            // ── Formula selector (Size mode only) ────────────────────────
-            if state.mode == .cutSize {
-                GlassTypeSelectorView(presetsStore: presetsStore, state: state)
-            }
-
-            // ── Main content ──────────────────────────────────────────────────
-            if state.mode == .glassType {
-                GlassTypeTabView(
-                    glassState: state.glassTypeState,
-                    onBuildConfirmed: { build in
-                        state.setMode(.cutSize)
+            // ── Scrollable content area (formula strip + main content) ────────
+            // Wrapped in ScrollView so Size tab result rows never push the numpad
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: KeyboardLayoutMetrics.sectionSpacing) {
+                    if state.mode == .cutSize {
+                        GlassTypeSelectorView(presetsStore: presetsStore, state: state)
                     }
-                )
-            } else {
-                MeasurementDisplayView(state: state)
+
+                    if state.mode == .glassType {
+                        GlassTypeTabView(
+                            glassState: state.glassTypeState,
+                            onBuildConfirmed: { _ in
+                                state.setMode(.cutSize)
+                            }
+                        )
+                    } else {
+                        MeasurementDisplayView(state: state)
+                    }
+                }
+                .padding(.horizontal, 0)
+                .padding(.bottom, 6)
             }
 
-            Spacer(minLength: 0)
-
-            // ── Numpad (pinned to bottom) ─────────────────────────────────────
+            // ── Numpad (always visible, pinned to bottom) ─────────────────────
             NumpadView(
                 state: state,
                 clipboardStore: clipboardStore,
@@ -629,7 +623,6 @@ struct ModeSelectorView: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
         .frame(height: KeyboardLayoutMetrics.modeSelectorHeight)
     }
 }
@@ -1399,7 +1392,7 @@ struct WeightAutoDisplayView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 54)
         .background(KeyboardCardBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
