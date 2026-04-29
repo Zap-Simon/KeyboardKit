@@ -1005,40 +1005,36 @@ struct KeypadButtonView: View {
     }
 
     var body: some View {
-        // Spacer: invisible non-interactive placeholder
         if key == .spacer {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            return
-        }
-        Group {
-            if isGlobe && !needsInputModeSwitch {
-                Button(action: onSettings) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: false))
-                        .cornerRadius(10)
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                Button(action: onTap) {
-                    keyButtonLabel
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: isSpecial, isAccent: isInsert))
-                        .foregroundColor(isInsert ? .white : .primary)
-                        .cornerRadius(10)
-                }
-                .if(onLongPress != nil) { view in
-                    view.simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.6).onEnded { _ in
-                            onLongPress?()
-                        }
-                    )
-                }
+        } else if isGlobe && !needsInputModeSwitch {
+            Button(action: onSettings) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 16))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: false))
+                    .cornerRadius(10)
+                    .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            Button(action: onTap) {
+                keyButtonLabel
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: isSpecial, isAccent: isInsert))
+                    .foregroundColor(isInsert ? .white : .primary)
+                    .cornerRadius(10)
+            }
+            .if(onLongPress != nil) { view in
+                view.simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.6).onEnded { _ in
+                        onLongPress?()
+                    }
+                )
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
