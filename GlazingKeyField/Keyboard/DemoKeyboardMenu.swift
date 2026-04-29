@@ -50,6 +50,81 @@ enum FormulaSource: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - GlazingClearance
+
+struct GlazingClearance {
+    /// Gap between glass edge and the rebate stop on each side (mm).
+    /// Derived from tight measurement when available.
+    let heightPerSideMm: Double?
+    let widthPerSideMm: Double?
+
+    /// How far the glass extends past the sight line into the rebate on each side (mm).
+    /// Derived from sight measurement when available.
+    let heightOverlapMm: Double?
+    let widthOverlapMm: Double?
+
+    /// Absolute difference in clearance between the height and width dimensions.
+    var delta: Double? {
+        guard let h = heightPerSideMm, let w = widthPerSideMm else { return nil }
+        return abs(h - w)
+    }
+
+    enum Status {
+        case ok                  // delta < 2mm or only one dim
+        case check               // 2–5mm delta
+        case remeasure           // ≥ 5mm delta
+
+        var symbol: String {
+            switch self {
+            case .ok:        return "✓"
+            case .check:     return "⚠"
+            case .remeasure: return "⚠"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .ok:        return "Consistent"
+            case .check:     return "Check measurements"
+            case .remeasure: return "Re-measure!"
+            }
+        }
+    }
+
+    var status: Status {
+        guard let d = delta else { return .ok }
+        if d < 2 { return .ok }
+        if d < 5 { return .check }
+        return .remeasure
+    }
+
+    /// Compact description for the print record.
+    var printSummary: String {
+        if let h = heightPerSideMm, let w = widthPerSideMm {
+            let hStr = fmtMm(h)
+            let wStr = fmtMm(w)
+            let dims = abs(h - w) < 0.5 ? "\(hStr)mm/side" : "H=\(hStr)mm W=\(wStr)mm"
+            return "Clr: \(dims) (\(status.symbol) \(status.label))"
+        }
+        if let h = heightPerSideMm { return "Clr: \(fmtMm(h))mm/side" }
+        if let h = heightOverlapMm, let w = widthOverlapMm {
+            let hStr = fmtMm(h)
+            let wStr = fmtMm(w)
+            return abs(h - w) < 0.5
+                ? "Rebate edge: \(hStr)mm/side"
+                : "Rebate edge: H=\(hStr)mm W=\(wStr)mm"
+        }
+        if let h = heightOverlapMm { return "Rebate edge: \(fmtMm(h))mm/side" }
+        return ""
+    }
+
+    private func fmtMm(_ v: Double) -> String {
+        v.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(v))" : String(format: "%.1f", v)
+    }
+}
+
+// MARK: - GlazingResult
+
 struct GlazingResult {
     /// Source measurement (required). Opposite is optional — only present if user entered it.
     let sightWidth: Int?
@@ -63,6 +138,33 @@ struct GlazingResult {
     let calculationSource: FormulaSource
     let hasOppositeMeasurement: Bool
 
+    // MARK: Clearance
+
+    var clearance: GlazingClearance {
+        // Clearance per side from tight (gap between glass edge and rebate stop)
+        let hClr: Double? = tightHeight.map { Double($0 - cutHeight) / 2.0 }
+        let wClr: Double? = tightWidth.map  { Double($0 - cutWidth)  / 2.0 }
+
+        // Overlap per side from sight (how far glass extends past sight line into rebate)
+        let hOlp: Double? = sightHeight.map { Double(cutHeight - $0) / 2.0 }
+        let wOlp: Double? = sightWidth.map  { Double(cutWidth  - $0) / 2.0 }
+
+        return GlazingClearance(
+            heightPerSideMm: hClr,
+            widthPerSideMm:  wClr,
+            heightOverlapMm: hOlp,
+            widthOverlapMm:  wOlp
+        )
+    }
+
+    /// True when there is enough data to display a clearance value on-screen.
+    var hasClearanceInfo: Bool {
+        let c = clearance
+        return c.heightPerSideMm != nil || c.heightOverlapMm != nil
+    }
+
+    // MARK: Record text
+
     var formattedRecord: String {
         var lines = ["1@ \(cutSizeOnly)", ""]
         if let sw = sightWidth, let sh = sightHeight {
@@ -74,6 +176,8 @@ struct GlazingResult {
             lines.append("\(label): \(th)x\(tw)")
         }
         lines.append("Formula: \(formulaAdjustment)")
+        let summary = clearance.printSummary
+        if !summary.isEmpty { lines.append(summary) }
         return lines.joined(separator: "\n")
     }
 

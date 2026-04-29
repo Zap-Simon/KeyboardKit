@@ -3,9 +3,8 @@ import SwiftUI
 private enum KeyboardLayoutMetrics {
     static let modeSelectorHeight: CGFloat = 28
     static let selectorHeight: CGFloat = 60
-    // 132pt: cards have outer .padding(.vertical, 4/6) after .frame(height:52),
-    // so their layout height is 60pt (cut) / 64pt (weight). Max mode = 64+6+58=128, +4pt buffer.
-    static let measurementHeight: CGFloat = 132
+    // 148pt: cards are ~60pt layout height (cut mode). 60+6+82=148 when clearance shown.
+    static let measurementHeight: CGFloat = 148
     static let sectionSpacing: CGFloat = 4
     static let shellCornerRadius: CGFloat = 18
 }
@@ -68,12 +67,18 @@ final class KeyboardState: ObservableObject {
     @Published var weightHeight: String = ""
     @Published var activeField: MeasurementField = .sightHeight
     @Published var showSettings = false
+    @Published var showClipboard = false
+    @Published var showCredentials = false
     @Published var selectedPreset: GlassPreset?
     @Published var selectedWeightSpec: GlassWeightSpec?
     let glassTypeState = GlassTypeState()
 
     private var autoFilledWeightHeight = ""
     private var autoFilledWeightWidth = ""
+
+    // Auto-advance between fields
+    private var advanceWorkItem: DispatchWorkItem?
+    private static let advanceDebounce: TimeInterval = 0.75
 
     init(initialPreset: GlassPreset? = nil, initialWeightSpec: GlassWeightSpec? = nil) {
         selectedPreset = initialPreset ?? GlassPreset.defaults.first
@@ -103,10 +108,13 @@ final class KeyboardState: ObservableObject {
     }
 
     func appendToActive(_ char: String) {
-        setValue(value(for: activeField) + char, for: activeField)
+        let newValue = value(for: activeField) + char
+        setValue(newValue, for: activeField)
+        scheduleAutoAdvance(for: newValue)
     }
 
     func deleteFromActive() {
+        cancelAutoAdvance()
         var current = value(for: activeField)
         if !current.isEmpty {
             current.removeLast()
@@ -115,7 +123,50 @@ final class KeyboardState: ObservableObject {
     }
 
     func clearActive() {
+        cancelAutoAdvance()
         setValue("", for: activeField)
+    }
+
+    /// Advance to the next field in the current mode, with haptic feedback.
+    func advanceToNextField() {
+        cancelAutoAdvance()
+        let fields = modeFields
+        guard let idx = fields.firstIndex(of: activeField),
+              idx + 1 < fields.count else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            activeField = fields[idx + 1]
+        }
+    }
+
+    private func scheduleAutoAdvance(for value: String) {
+        cancelAutoAdvance()
+        let digitCount = value.filter(\.isNumber).count
+        if digitCount >= 4 {
+            // Four digits entered — advance immediately (all glazing measurements ≤ 9999)
+            advanceToNextField()
+        } else if digitCount == 3 {
+            // Three digits — wait briefly in case a 4th digit follows
+            let work = DispatchWorkItem { [weak self] in
+                DispatchQueue.main.async { self?.advanceToNextField() }
+            }
+            advanceWorkItem = work
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + KeyboardState.advanceDebounce,
+                execute: work
+            )
+        }
+    }
+
+    private func cancelAutoAdvance() {
+        advanceWorkItem?.cancel()
+        advanceWorkItem = nil
+    }
+
+    /// Manually select a field, cancelling any pending auto-advance.
+    func selectField(_ field: MeasurementField) {
+        cancelAutoAdvance()
+        activeField = field
     }
 
     var modeFields: [MeasurementField] {
@@ -169,6 +220,7 @@ final class KeyboardState: ObservableObject {
     }
 
     func reset() {
+        cancelAutoAdvance()
         switch mode {
         case .glassType:
             glassTypeState.reset()
@@ -214,6 +266,8 @@ struct KeyboardRootView: View {
     let onDelete: () -> Void
 
     @StateObject private var state = KeyboardState()
+    @StateObject private var clipboardStore = ClipboardHistoryStore()
+    @StateObject private var credentialStore = CredentialStore()
     @AppStorage(KeyboardPreferences.debugModeKey, store: UserDefaults.standard) private var isDebugModeEnabled = false
 
     init(
@@ -265,6 +319,22 @@ struct KeyboardRootView: View {
                 if state.showSettings {
                     SettingsPanelView(presetsStore: presetsStore, state: state)
                         .frame(maxWidth: .infinity, alignment: .top)
+                } else if state.showClipboard {
+                    ClipboardPanelView(
+                        store: clipboardStore,
+                        onInsert: { text in
+                            onInsert(text)
+                        },
+                        onClose: { state.showClipboard = false }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
+                } else if state.showCredentials {
+                    CredentialsPanelView(
+                        store: credentialStore,
+                        onInsert: { text in onInsert(text) },
+                        onClose: { state.showCredentials = false }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
                 } else {
                     keyboardContent
                 }
@@ -276,7 +346,50 @@ struct KeyboardRootView: View {
 
     private var keyboardContent: some View {
         VStack(spacing: KeyboardLayoutMetrics.sectionSpacing) {
-            ModeSelectorView(state: state)
+            ZStack(alignment: .trailing) {
+                ModeSelectorView(state: state)
+                // Utility buttons float at top-right of the mode selector row
+                HStack(spacing: 0) {
+                    // Saved logins button
+                    Button {
+                        state.showCredentials = true
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(credentialStore.credentials.isEmpty
+                                      ? Color.clear
+                                      : Color.accentColor.opacity(0.12))
+                                .frame(width: 24, height: 24)
+                            Image(systemName: "key.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(credentialStore.credentials.isEmpty ? .secondary : .accentColor)
+                        }
+                        .frame(width: 30, height: KeyboardLayoutMetrics.modeSelectorHeight)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    // History button
+                    Button {
+                        state.showClipboard = true
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(clipboardStore.entries.isEmpty
+                                      ? Color.clear
+                                      : Color.accentColor.opacity(0.12))
+                                .frame(width: 24, height: 24)
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(clipboardStore.entries.isEmpty ? .secondary : .accentColor)
+                        }
+                        .frame(width: 30, height: KeyboardLayoutMetrics.modeSelectorHeight)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.trailing, 4)
+            }
+            .frame(height: KeyboardLayoutMetrics.modeSelectorHeight)
             ZStack(alignment: .top) {
                 switch state.mode {
                 case .glassType:
@@ -307,6 +420,7 @@ struct KeyboardRootView: View {
 
             NumpadView(
                 state: state,
+                clipboardStore: clipboardStore,
                 onInsert: onInsert,
                 onSwitchKeyboard: onSwitchKeyboard,
                 onSettings: { state.showSettings = true },
@@ -667,7 +781,7 @@ struct MeasurementDisplayView: View {
                             activeField: state.activeField,
                             widthField: .sightWidth,
                             heightField: .sightHeight,
-                            onTap: { field in state.activeField = field }
+                            onTap: { field in state.selectField(field) }
                         )
                         MeasurementCardView(
                             title: "Tight",
@@ -677,7 +791,7 @@ struct MeasurementDisplayView: View {
                             widthField: .tightWidth,
                             heightField: .tightHeight,
                             isOptional: true,
-                            onTap: { field in state.activeField = field }
+                            onTap: { field in state.selectField(field) }
                         )
                     } else {
                         MeasurementCardView(
@@ -687,7 +801,7 @@ struct MeasurementDisplayView: View {
                             activeField: state.activeField,
                             widthField: .tightWidth,
                             heightField: .tightHeight,
-                            onTap: { field in state.activeField = field }
+                            onTap: { field in state.selectField(field) }
                         )
                         MeasurementCardView(
                             title: "Sight",
@@ -697,7 +811,7 @@ struct MeasurementDisplayView: View {
                             widthField: .sightWidth,
                             heightField: .sightHeight,
                             isOptional: true,
-                            onTap: { field in state.activeField = field }
+                            onTap: { field in state.selectField(field) }
                         )
                     }
                 }
@@ -707,7 +821,7 @@ struct MeasurementDisplayView: View {
                     widthExpr: state.weightWidth,
                     heightExpr: state.weightHeight,
                     activeField: state.activeField,
-                    onTap: { field in state.activeField = field }
+                    onTap: { field in state.selectField(field) }
                 )
                 WeightSummaryView(result: state.weightResult)
             }
@@ -872,46 +986,170 @@ struct CutSummaryView: View {
     var formulaSource: FormulaSource = .sight
 
     var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Glazing Size")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.secondary)
-
-                if let result {
-                    Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × "))
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                } else {
-                    Text("Enter \(formulaSource.title) H and W")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color(UIColor.tertiaryLabel))
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            if let result {
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("Adjustment")
+        VStack(spacing: 0) {
+            // ── Main row: cut size + adjustment ──────────────────────────
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Glazing Size")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
-                    Text(result.adjustment > 0 ? "+\(result.adjustment)mm" : "\(result.adjustment)mm")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.accentColor)
+
+                    if let result {
+                        Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × "))
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    } else {
+                        Text("Enter \(formulaSource.title) H and W")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Color(UIColor.tertiaryLabel))
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                if let result {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("Adjustment")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        Text(result.adjustment > 0 ? "+\(result.adjustment)mm" : "\(result.adjustment)mm")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.accentColor)
+                    }
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, result?.hasClearanceInfo == true ? 4 : 8)
+
+            // ── Clearance row (only when data available) ──────────────────
+            if let result, result.hasClearanceInfo {
+                ClearanceRowView(clearance: result.clearance)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 7)
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .frame(height: 58)
-        .background {
-            KeyboardCardBackground(cornerRadius: 12)
-        }
+        .background { KeyboardCardBackground(cornerRadius: 12) }
         .cornerRadius(12)
+    }
+}
+
+// MARK: - ClearanceRowView
+
+private struct ClearanceRowView: View {
+    let clearance: GlazingClearance
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // Label + values
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.left.and.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(labelColour)
+
+                Text(titleText)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(labelColour)
+
+                Text(valueText)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.primary)
+            }
+
+            Spacer(minLength: 4)
+
+            // Status badge (only when both dims are present for comparison)
+            if let status = consistencyStatus {
+                HStack(spacing: 3) {
+                    Image(systemName: statusIcon(status))
+                        .font(.system(size: 9, weight: .bold))
+                    Text(statusShortLabel(status))
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundColor(statusColour(status))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(statusColour(status).opacity(colorScheme == .dark ? 0.18 : 0.10))
+                )
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.secondary.opacity(colorScheme == .dark ? 0.10 : 0.06))
+        )
+    }
+
+    // MARK: Helpers
+
+    private var labelColour: Color { .secondary }
+
+    private var titleText: String {
+        if clearance.heightPerSideMm != nil { return "Clr" }
+        return "Edge"
+    }
+
+    private var valueText: String {
+        if let h = clearance.heightPerSideMm, let w = clearance.widthPerSideMm {
+            let hStr = fmtMm(h)
+            let wStr = fmtMm(w)
+            return abs(h - w) < 0.5 ? "\(hStr)mm/side" : "H \(hStr)  W \(wStr)mm"
+        }
+        if let h = clearance.heightPerSideMm { return "\(fmtMm(h))mm/side" }
+        if let h = clearance.heightOverlapMm, let w = clearance.widthOverlapMm {
+            let hStr = fmtMm(h)
+            let wStr = fmtMm(w)
+            return abs(h - w) < 0.5 ? "\(hStr)mm/side" : "H \(hStr)  W \(wStr)mm"
+        }
+        if let h = clearance.heightOverlapMm { return "\(fmtMm(h))mm/side" }
+        return ""
+    }
+
+    private var consistencyStatus: GlazingClearance.Status? {
+        // Only show status badge when we have both H and W to compare
+        guard clearance.heightPerSideMm != nil && clearance.widthPerSideMm != nil
+           || clearance.heightOverlapMm != nil && clearance.widthOverlapMm != nil
+        else { return nil }
+        let s = clearance.status
+        // Don't show a badge if they're the same value (e.g. tight-only formula gives identical dims)
+        if let delta = clearance.delta, delta < 0.5 { return nil }
+        return s
+    }
+
+    private func statusIcon(_ s: GlazingClearance.Status) -> String {
+        switch s {
+        case .ok:        return "checkmark.circle.fill"
+        case .check:     return "exclamationmark.triangle.fill"
+        case .remeasure: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func statusShortLabel(_ s: GlazingClearance.Status) -> String {
+        switch s {
+        case .ok:        return "Consistent"
+        case .check:     return "Check"
+        case .remeasure: return "Re-measure!"
+        }
+    }
+
+    private func statusColour(_ s: GlazingClearance.Status) -> Color {
+        switch s {
+        case .ok:        return .green
+        case .check:     return .orange
+        case .remeasure: return .red
+        }
+    }
+
+    private func fmtMm(_ v: Double) -> String {
+        v.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(v))" : String(format: "%.1f", v)
     }
 }
 
@@ -966,6 +1204,7 @@ struct WeightSummaryView: View {
 
 struct NumpadView: View {
     @ObservedObject var state: KeyboardState
+    @ObservedObject var clipboardStore: ClipboardHistoryStore
     @EnvironmentObject private var keyboardContext: KeyboardContext
     let onInsert: (String) -> Void
     let onSwitchKeyboard: () -> Void
@@ -1078,6 +1317,7 @@ struct NumpadView: View {
             // Tap = weight only; long-press = full record
             text = full ? "\(result.weightLabel)kg" : result.formattedRecord
         }
+        clipboardStore.add(text, modeLabel: state.mode.title)
         onInsert(text)
         state.reset()
     }

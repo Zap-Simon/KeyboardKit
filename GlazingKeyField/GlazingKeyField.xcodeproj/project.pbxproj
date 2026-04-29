@@ -24,6 +24,10 @@
 		AA000001000000000000AA01 /* GlassTypeData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000BB01 /* GlassTypeData.swift */; };
 		AA000001000000000000AA02 /* GlassTypeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000BB02 /* GlassTypeState.swift */; };
 		AA000001000000000000AA03 /* GlassTypeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000BB03 /* GlassTypeView.swift */; };
+		AB000001000000000000AA01 /* ClipboardHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000001000000000000BB01 /* ClipboardHistory.swift */; };
+		AB000001000000000000AA02 /* ClipboardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000001000000000000BB02 /* ClipboardHistoryView.swift */; };
+		AC000001000000000000AA01 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC000001000000000000BB01 /* CredentialStore.swift */; };
+		AC000001000000000000AA02 /* CredentialsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC000001000000000000BB02 /* CredentialsPanelView.swift */; };
 		A99A1F112E640E130014973F /* DemoToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99A1F032E640E130014973F /* DemoToolbar.swift */; };
 		A99A1F132E640E130014973F /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99A1F062E640E130014973F /* KeyboardViewController.swift */; };
 		A99A1F142E640E2B0014973F /* KeyboardApp+Demo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96F413A2C73F2FE007344D2 /* KeyboardApp+Demo.swift */; };
@@ -75,6 +79,10 @@
 		AA000001000000000000BB01 /* GlassTypeData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTypeData.swift; sourceTree = "<group>"; };
 		AA000001000000000000BB02 /* GlassTypeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTypeState.swift; sourceTree = "<group>"; };
 		AA000001000000000000BB03 /* GlassTypeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTypeView.swift; sourceTree = "<group>"; };
+		AB000001000000000000BB01 /* ClipboardHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistory.swift; sourceTree = "<group>"; };
+		AB000001000000000000BB02 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
+		AC000001000000000000BB01 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
+		AC000001000000000000BB02 /* CredentialsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialsPanelView.swift; sourceTree = "<group>"; };
 		A99A1F042E640E130014973F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A99A1F062E640E130014973F /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
 		A9A58B7F2CF4C0EF004DC7BE /* StandardSpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardSpeechRecognizer.swift; sourceTree = "<group>"; };
@@ -182,6 +190,8 @@
 			isa = PBXGroup;
 			children = (
 				A99A1EF92E640E130014973F /* Assets */,
+				AB000001000000000000CC01 /* Clipboard */,
+				AC000001000000000000CC01 /* Credentials */,
 				AA000001000000000000CC01 /* GlassType */,
 				A99A1F002E640E130014973F /* DemoKeyboardMenu.swift */,
 				A99A1F012E640E130014973F /* DemoKeyboardView.swift */,
@@ -190,6 +200,24 @@
 				A99A1F062E640E130014973F /* KeyboardViewController.swift */,
 			);
 			path = Keyboard;
+			sourceTree = "<group>";
+		};
+		AB000001000000000000CC01 /* Clipboard */ = {
+			isa = PBXGroup;
+			children = (
+				AB000001000000000000BB01 /* ClipboardHistory.swift */,
+				AB000001000000000000BB02 /* ClipboardHistoryView.swift */,
+			);
+			path = Clipboard;
+			sourceTree = "<group>";
+		};
+		AC000001000000000000CC01 /* Credentials */ = {
+			isa = PBXGroup;
+			children = (
+				AC000001000000000000BB01 /* CredentialStore.swift */,
+				AC000001000000000000BB02 /* CredentialsPanelView.swift */,
+			);
+			path = Credentials;
 			sourceTree = "<group>";
 		};
 		AA000001000000000000CC01 /* GlassType */ = {
@@ -353,7 +381,11 @@
 				A99A1F112E640E130014973F /* DemoToolbar.swift in Sources */,
 				A99A1F132E640E130014973F /* KeyboardViewController.swift in Sources */,					AA000001000000000000AA01 /* GlassTypeData.swift in Sources */,
 					AA000001000000000000AA02 /* GlassTypeState.swift in Sources */,
-					AA000001000000000000AA03 /* GlassTypeView.swift in Sources */,			);
+					AA000001000000000000AA03 /* GlassTypeView.swift in Sources */,
+					AB000001000000000000AA01 /* ClipboardHistory.swift in Sources */,
+					AB000001000000000000AA02 /* ClipboardHistoryView.swift in Sources */,
+					AC000001000000000000AA01 /* CredentialStore.swift in Sources */,
+					AC000001000000000000AA02 /* CredentialsPanelView.swift in Sources */,			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

@@ -25,12 +25,16 @@ struct HomeScreen: View {
                         .cardEntrance(delay: 0.05, appeared: appeared)
                     setupCard
                         .cardEntrance(delay: 0.13, appeared: appeared)
+                    fullAccessCard
+                        .cardEntrance(delay: 0.19, appeared: appeared)
                     sampleOutputCard
-                        .cardEntrance(delay: 0.21, appeared: appeared)
+                        .cardEntrance(delay: 0.25, appeared: appeared)
                     formulaInfoCard
-                        .cardEntrance(delay: 0.29, appeared: appeared)
-                    testAreaCard
+                        .cardEntrance(delay: 0.31, appeared: appeared)
+                    workflowCard
                         .cardEntrance(delay: 0.37, appeared: appeared)
+                    testAreaCard
+                        .cardEntrance(delay: 0.44, appeared: appeared)
                 }
                 .padding(16)
             }
@@ -158,6 +162,122 @@ private extension HomeScreen {
             MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
         }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    var fullAccessCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+
+            // Header
+            Text("Full Access")
+                .font(.system(size: 12, weight: .bold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(ScreenTheme.accent)
+
+            // Hero row
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(ScreenTheme.accent.opacity(0.12))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: "lock.open.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(ScreenTheme.accent)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Unlock the full keyboard")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(ScreenTheme.ink)
+                    Text("Full Access enables clipboard history and saved login credentials — stored securely on-device, never shared.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(ScreenTheme.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // Step-by-step path
+            VStack(alignment: .leading, spacing: 0) {
+                fullAccessStep(number: 1, text: "Settings")
+                stepArrow
+                fullAccessStep(number: 2, text: "General")
+                stepArrow
+                fullAccessStep(number: 3, text: "Keyboard")
+                stepArrow
+                fullAccessStep(number: 4, text: "Keyboards")
+                stepArrow
+                fullAccessStep(number: 5, text: "Glazing Key")
+                stepArrow
+                fullAccessStep(number: 6, text: "Allow Full Access  \u{2192}  toggle ON")
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            // What it unlocks bento
+            HStack(spacing: 10) {
+                bentoTile(
+                    icon: "clock.arrow.circlepath",
+                    title: "Clipboard history",
+                    body: "Every inserted record is saved so you can re-insert it at any time."
+                )
+                bentoTile(
+                    icon: "key.fill",
+                    title: "Saved logins",
+                    body: "Username and password stored in the iOS Keychain — tap once to fill."
+                )
+            }
+
+            // Privacy note
+            HStack(spacing: 6) {
+                Image(systemName: "shield.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(ScreenTheme.accent)
+                Text("All data stays on your device. Nothing is sent to any server or synced to iCloud.")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(ScreenTheme.inkSoft)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                MaterialScreenInsetBackground(cornerRadius: 10, tint: ScreenTheme.panelTint(for: colorScheme))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func fullAccessStep(number: Int, text: String) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(ScreenTheme.accent)
+                    .frame(width: 22, height: 22)
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(.white)
+            }
+            Text(text)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(ScreenTheme.ink)
+        }
+    }
+
+    private var stepArrow: some View {
+        HStack(spacing: 0) {
+            Spacer().frame(width: 10)
+            Rectangle()
+                .fill(ScreenTheme.accent.opacity(0.3))
+                .frame(width: 1.5, height: 10)
+                .padding(.leading, 10) // align with centre of numbered circle
+        }
     }
 
     var setupCard: some View {
@@ -358,6 +478,142 @@ private extension HomeScreen {
         }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .animation(.spring(response: 0.35), value: quoteText.isEmpty)
+    }
+
+    var workflowCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+
+            // Header
+            Label("Workflow", systemImage: "arrow.triangle.2.circlepath")
+                .font(.system(size: 12, weight: .bold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(ScreenTheme.accent)
+                .labelStyle(.iconOnly)
+
+            HStack(alignment: .top) {
+                Label("How it works", systemImage: "arrow.triangle.2.circlepath")
+                    .labelStyle(.titleOnly)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(ScreenTheme.ink)
+                Spacer()
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(ScreenTheme.accent.opacity(0.5))
+            }
+
+            // Formula auto-calc row (full-width)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "function")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(ScreenTheme.accent)
+                    Text("Formula auto-calculator")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(ScreenTheme.ink)
+                }
+                Text("Pick a preset once (e.g. Double Glazing +24mm Sight). Enter height and width — the cut size appears instantly. No calculator, no post-trip arithmetic, no re-entry back at the office.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(ScreenTheme.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Mini flow diagram
+                HStack(spacing: 0) {
+                    flowStep("Sight", icon: "ruler")
+                    flowArrow
+                    flowStep("Formula", icon: "function")
+                    flowArrow
+                    flowStep("Cut size", icon: "checkmark.square")
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            // 2×2 bento grid
+            HStack(spacing: 10) {
+                bentoTile(
+                    icon: "exclamationmark.triangle",
+                    title: "Clearance check",
+                    body: "Enter both Sight and Tight. The keyboard compares H vs W clearance and warns if they differ — catching typos and mis-measures before you leave the job."
+                )
+                bentoTile(
+                    icon: "clock.arrow.circlepath",
+                    title: "History clipboard",
+                    body: "Every inserted record is saved on-device. Tap the clock icon to re-insert any previous result — no retyping from memory on-site."
+                )
+            }
+
+            HStack(spacing: 10) {
+                bentoTile(
+                    icon: "square.stack",
+                    title: "Glass type → weight",
+                    body: "Set the glass build once in the Type tab. Switch to Weight and the kg/m² is already set — just enter the size."
+                )
+                bentoTile(
+                    icon: "lock.shield",
+                    title: "All on-device",
+                    body: "No internet, no accounts. Measurements and history never leave the device. Works in basements, sites, and poor signal areas."
+                )
+            }
+
+            // Speed note
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(ScreenTheme.accent)
+                    Text("Speed note")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(ScreenTheme.ink)
+                }
+                Text("Entering digits is slightly slower than a full keyboard — but every press of ✓ eliminates a calculator step, a clipboard paste, manual formatting, and the risk of a transcription error. For most jobs the time saving is in post-processing, not input.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(ScreenTheme.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                MaterialScreenInsetBackground(cornerRadius: 12, tint: ScreenTheme.panelTint(for: colorScheme))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func flowStep(_ label: String, icon: String) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(ScreenTheme.accent)
+            Text(label)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(ScreenTheme.inkSoft)
+        }
+        .frame(minWidth: 52)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background {
+            MaterialScreenInsetBackground(cornerRadius: 8, tint: ScreenTheme.panelTint(for: colorScheme))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var flowArrow: some View {
+        Image(systemName: "arrow.right")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(ScreenTheme.accent.opacity(0.5))
+            .padding(.horizontal, 4)
     }
 
     func statPill(icon: String, label: String) -> some View {
