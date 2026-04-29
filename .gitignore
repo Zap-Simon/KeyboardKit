@@ -2,6 +2,7 @@
 /.build
 /Packages
 .swiftpm/**.*
-xcshareddata
+xcshareddata/IDEWorkspaceChecks.plist
+xcshareddata/swiftpm/
 xcuserdata/
 DerivedData/
