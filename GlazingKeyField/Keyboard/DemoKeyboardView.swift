@@ -43,6 +43,7 @@ enum MeasurementField: CaseIterable {
 }
 
 enum KeyboardMode: String, CaseIterable, Identifiable {
+    case glassType
     case cutSize
     case weight
 
@@ -50,14 +51,15 @@ enum KeyboardMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .cutSize: return "Glazing"
+        case .glassType: return "Type"
+        case .cutSize: return "Size"
         case .weight: return "Weight"
         }
     }
 }
 
 final class KeyboardState: ObservableObject {
-    @Published var mode: KeyboardMode = .cutSize
+    @Published var mode: KeyboardMode = .glassType
     @Published var sightWidth: String = ""
     @Published var sightHeight: String = ""
     @Published var tightWidth: String = ""
@@ -68,6 +70,7 @@ final class KeyboardState: ObservableObject {
     @Published var showSettings = false
     @Published var selectedPreset: GlassPreset?
     @Published var selectedWeightSpec: GlassWeightSpec?
+    let glassTypeState = GlassTypeState()
 
     private var autoFilledWeightHeight = ""
     private var autoFilledWeightWidth = ""
@@ -117,6 +120,8 @@ final class KeyboardState: ObservableObject {
 
     var modeFields: [MeasurementField] {
         switch mode {
+        case .glassType:
+            return []   // Type tab uses chip selection, not numpad fields
         case .cutSize:
             let source = selectedPreset?.source ?? .sight
             return source == .sight
@@ -130,11 +135,23 @@ final class KeyboardState: ObservableObject {
     func setMode(_ newMode: KeyboardMode) {
         mode = newMode
         if newMode == .weight {
+            prepopulateWeightFromTypeIfAvailable()
             prepopulateWeightFromGlazingIfAvailable()
         }
         if !modeFields.contains(activeField), let first = modeFields.first {
             activeField = first
         }
+    }
+
+    /// If the Type tab has a confirmed glass build, create a weight spec from it.
+    private func prepopulateWeightFromTypeIfAvailable() {
+        guard let build = glassTypeState.confirmedBuild else { return }
+        let kgPerM2 = Decimal(build.areaWeightKgPerM2)
+        selectedWeightSpec = GlassWeightSpec(
+            id: "_glass_type_\(build.outerPane?.id ?? "custom")",
+            name: build.displayName,
+            arealDensityKgPerM2: kgPerM2
+        )
     }
 
     private func prepopulateWeightFromGlazingIfAvailable() {
@@ -153,6 +170,8 @@ final class KeyboardState: ObservableObject {
 
     func reset() {
         switch mode {
+        case .glassType:
+            glassTypeState.reset()
         case .cutSize:
             sightWidth = ""
             sightHeight = ""
@@ -259,17 +278,32 @@ struct KeyboardRootView: View {
         VStack(spacing: KeyboardLayoutMetrics.sectionSpacing) {
             ModeSelectorView(state: state)
             ZStack(alignment: .top) {
-                if state.mode == .cutSize {
+                switch state.mode {
+                case .glassType:
+                    // Type tab: full-height builder — no separate selector row needed
+                    EmptyView()
+                case .cutSize:
                     GlassTypeSelectorView(presetsStore: presetsStore, state: state)
-                } else {
+                case .weight:
                     WeightSpecSelectorView(state: state)
                 }
             }
-            .frame(height: KeyboardLayoutMetrics.selectorHeight, alignment: .top)
+            .frame(height: state.mode == .glassType ? 0 : KeyboardLayoutMetrics.selectorHeight, alignment: .top)
             .clipped()
 
-            MeasurementDisplayView(state: state)
-                .frame(height: KeyboardLayoutMetrics.measurementHeight, alignment: .top)
+            if state.mode == .glassType {
+                GlassTypeTabView(
+                    glassState: state.glassTypeState,
+                    onBuildConfirmed: { build in
+                        // Auto-advance to Size tab once a build is confirmed
+                        state.setMode(.cutSize)
+                    }
+                )
+                .frame(height: KeyboardLayoutMetrics.measurementHeight)
+            } else {
+                MeasurementDisplayView(state: state)
+                    .frame(height: KeyboardLayoutMetrics.measurementHeight, alignment: .top)
+            }
 
             NumpadView(
                 state: state,
@@ -551,7 +585,9 @@ struct WeightSpecSelectorView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.secondary)
                 Spacer()
-                if let spec = state.selectedWeightSpec {
+                if let build = state.glassTypeState.confirmedBuild {
+                    GlassTypeSummaryBadge(build: build)
+                } else if let spec = state.selectedWeightSpec {
                     Text("\(GlassWeightCalculator.formattedDecimal(spec.arealDensityKgPerM2, scale: 1))kg/m2")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.accentColor)
@@ -559,31 +595,57 @@ struct WeightSpecSelectorView: View {
             }
             .padding(.horizontal, 16)
 
-            ScrollView(.horizontal, showsIndicators: false) {
+            if state.glassTypeState.confirmedBuild != nil {
+                // Build is from Type tab — show a single chip reflecting it
                 HStack(spacing: 8) {
-                    ForEach(GlassWeightSpec.defaults) { spec in
-                        let isSelected = state.selectedWeightSpec?.id == spec.id
-
-                        Button(action: { state.selectedWeightSpec = spec }) {
-                            Text(spec.name)
-                                .font(.system(size: 12, weight: .semibold))
-                                .lineLimit(1)
-                                .frame(height: 32)
-                                .padding(.horizontal, 12)
-                                .background {
-                                    if isSelected {
-                                        KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
-                                    } else {
-                                        KeyboardCardBackground(cornerRadius: 10)
-                                    }
-                                }
-                                .foregroundColor(isSelected ? .white : .primary)
-                                .cornerRadius(10)
-                        }
-                        .buttonStyle(.plain)
+                    Text(state.selectedWeightSpec?.name ?? "")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
+                        .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true))
+                        .cornerRadius(10)
+                    Spacer()
+                    Button(action: {
+                        state.glassTypeState.reset()
+                        state.selectedWeightSpec = GlassWeightSpec.defaults.first
+                    }) {
+                        Text("Change")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.accentColor)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 16)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(GlassWeightSpec.defaults) { spec in
+                            let isSelected = state.selectedWeightSpec?.id == spec.id
+
+                            Button(action: { state.selectedWeightSpec = spec }) {
+                                Text(spec.name)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .lineLimit(1)
+                                    .frame(height: 32)
+                                    .padding(.horizontal, 12)
+                                    .background {
+                                        if isSelected {
+                                            KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
+                                        } else {
+                                            KeyboardCardBackground(cornerRadius: 10)
+                                        }
+                                    }
+                                    .foregroundColor(isSelected ? .white : .primary)
+                                    .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
             }
         }
     }
@@ -1003,6 +1065,10 @@ struct NumpadView: View {
     private func insertRecord(full: Bool) {
         let text: String
         switch state.mode {
+        case .glassType:
+            // In Type tab, insert just advances to Size tab
+            state.setMode(.cutSize)
+            return
         case .cutSize:
             guard let result = state.result else { return }
             // Tap = full multi-line record; long-press = "1@ WxH"
