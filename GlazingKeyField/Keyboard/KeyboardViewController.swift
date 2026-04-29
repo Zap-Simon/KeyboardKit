@@ -23,20 +23,16 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         clearHostBackgrounds()
-        renderState.isContentVisible = false
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         clearHostBackgrounds()
-        DispatchQueue.main.async { [weak self] in
-            self?.renderState.isContentVisible = true
+        if !renderState.isContentVisible {
+            DispatchQueue.main.async { [weak self] in
+                self?.renderState.isContentVisible = true
+            }
         }
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        renderState.isContentVisible = false
     }
 
     override func viewDidLayoutSubviews() {

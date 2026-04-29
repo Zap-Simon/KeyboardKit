@@ -1,7 +1,7 @@
 import SwiftUI
 
 private enum KeyboardLayoutMetrics {
-    static let modeSelectorHeight: CGFloat = 34
+    static let modeSelectorHeight: CGFloat = 28
     static let selectorHeight: CGFloat = 60
     // 132pt: cards have outer .padding(.vertical, 4/6) after .frame(height:52),
     // so their layout height is 60pt (cut) / 64pt (weight). Max mode = 64+6+58=128, +4pt buffer.
@@ -453,7 +453,6 @@ struct ModeSelectorView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 6)
         .frame(height: KeyboardLayoutMetrics.modeSelectorHeight)
     }
 }

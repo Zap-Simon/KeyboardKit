@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
-PROJECT_FILE="$ROOT_DIR/Demo/Demo.xcodeproj/project.pbxproj"
+PROJECT_FILE="$ROOT_DIR/GlazingKeyField/GlazingKeyField.xcodeproj/project.pbxproj"
 
 usage() {
   cat <<'EOF'
@@ -17,7 +17,7 @@ Usage:
   ./bump --build 42       # set build number only
 
 Notes:
-  - Updates MARKETING_VERSION and CURRENT_PROJECT_VERSION in Demo/Demo.xcodeproj/project.pbxproj
+  - Updates MARKETING_VERSION and CURRENT_PROJECT_VERSION in GlazingKeyField/GlazingKeyField.xcodeproj/project.pbxproj
   - Applies to both the app and keyboard extension targets
 EOF
 }
