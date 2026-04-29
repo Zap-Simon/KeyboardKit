@@ -2,19 +2,15 @@ import SwiftUI
 
 private struct SettingsSurfaceBackground: View {
     let cornerRadius: CGFloat
-    var lightOverlayOpacity: CGFloat = 0.08
-    var darkOverlayOpacity: CGFloat = 0.18
+    var lightOverlayOpacity: CGFloat = 0.08  // kept for call-site compatibility, unused
+    var darkOverlayOpacity: CGFloat = 0.18   // kept for call-site compatibility, unused
     var shadowOpacity: CGFloat = 0.08
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        KeyboardPanelBackground(
-            cornerRadius: cornerRadius,
-            lightOverlayOpacity: lightOverlayOpacity,
-            darkOverlayOpacity: darkOverlayOpacity
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? shadowOpacity * 1.2 : shadowOpacity), radius: 8, x: 0, y: 4)
+        KeyboardCardBackground(cornerRadius: cornerRadius)
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? shadowOpacity * 1.2 : shadowOpacity), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -70,7 +66,7 @@ struct SettingsPanelView: View {
     private var presetList: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                Text("Glass Presets")
+                Text("Formula Presets")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
 
@@ -101,6 +97,7 @@ struct SettingsPanelView: View {
                             isFavorite: presetsStore.isFavorite(preset),
                             canMoveUp: index > 0,
                             canMoveDown: index < presetsStore.presets.count - 1,
+                            canDelete: !preset.isBuiltIn,
                             onEdit: {
                                 isCreatingPreset = false
                                 editingPreset = preset
@@ -148,7 +145,8 @@ struct SettingsPanelView: View {
     }
 
     private func deletePreset(_ preset: GlassPreset) {
-        guard let index = presetsStore.presets.firstIndex(where: { $0.id == preset.id }) else { return }
+        guard !preset.isBuiltIn,
+              let index = presetsStore.presets.firstIndex(where: { $0.id == preset.id }) else { return }
         presetsStore.delete(at: IndexSet(integer: index))
     }
 
@@ -184,6 +182,7 @@ struct PresetRowView: View {
     let isFavorite: Bool
     let canMoveUp: Bool
     let canMoveDown: Bool
+    var canDelete: Bool = true
     let onEdit: () -> Void
     let onFavorite: () -> Void
     let onDelete: () -> Void
@@ -236,7 +235,9 @@ struct PresetRowView: View {
 
             SettingsIconButton(systemName: isFavorite ? "star.fill" : "star", title: "Favorite", foregroundColor: isFavorite ? .yellow : .primary, action: onFavorite)
             SettingsIconButton(systemName: "pencil", title: "Edit", action: onEdit)
-            SettingsIconButton(systemName: "trash", title: "Delete", foregroundColor: .red, action: onDelete)
+            if canDelete {
+                SettingsIconButton(systemName: "trash", title: "Delete", foregroundColor: .red, action: onDelete)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -253,6 +254,7 @@ struct PresetEditorView: View {
 
     @State private var name: String
     @State private var adjustment: Int
+    @State private var source: FormulaSource
     @State private var originalPreset: GlassPreset
 
     init(presetsStore: PresetsStore, preset: GlassPreset, isNew: Bool = false, onDismiss: @escaping () -> Void) {
@@ -261,6 +263,7 @@ struct PresetEditorView: View {
         self.onDismiss = onDismiss
         _name = State(initialValue: preset.name)
         _adjustment = State(initialValue: preset.adjustment)
+        _source = State(initialValue: preset.source)
         _originalPreset = State(initialValue: preset)
     }
 
@@ -268,7 +271,7 @@ struct PresetEditorView: View {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    private var exampleBaseName: String { adjustment > 0 ? "Sight" : "Tight" }
+    private var exampleBaseName: String { source.title }
     private var exampleBase: Int { 1200 }
     private var exampleCut: Int { exampleBase + adjustment }
 
@@ -326,6 +329,16 @@ struct PresetEditorView: View {
                         }
                     }
 
+                    EditorSection(title: "Apply Formula To") {
+                        Picker("Source", selection: $source) {
+                            ForEach(FormulaSource.allCases) { s in
+                                Text(s.title).tag(s)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+
                     EditorSection(title: "Adjustment") {
                         HStack(spacing: 8) {
                             AdjustmentButton(systemName: "minus", isEnabled: adjustment > -100) {
@@ -361,7 +374,7 @@ struct PresetEditorView: View {
 
     private func savePreset() {
         guard canSave else { return }
-        let updated = GlassPreset(id: originalPreset.id, name: name.trimmingCharacters(in: .whitespaces), adjustment: adjustment)
+        let updated = GlassPreset(id: originalPreset.id, name: name.trimmingCharacters(in: .whitespaces), adjustment: adjustment, source: source)
         if isNew {
             presetsStore.add(updated)
         } else {

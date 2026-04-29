@@ -118,7 +118,10 @@ final class KeyboardState: ObservableObject {
     var modeFields: [MeasurementField] {
         switch mode {
         case .cutSize:
-            return [.sightHeight, .sightWidth, .tightHeight, .tightWidth]
+            let source = selectedPreset?.source ?? .sight
+            return source == .sight
+                ? [.sightHeight, .sightWidth, .tightHeight, .tightWidth]
+                : [.tightHeight, .tightWidth, .sightHeight, .sightWidth]
         case .weight:
             return [.weightHeight, .weightWidth]
         }
@@ -155,7 +158,7 @@ final class KeyboardState: ObservableObject {
             sightHeight = ""
             tightWidth = ""
             tightHeight = ""
-            activeField = .sightHeight
+            activeField = (selectedPreset?.source ?? .sight) == .sight ? .sightHeight : .tightHeight
         case .weight:
             weightWidth = ""
             weightHeight = ""
@@ -328,6 +331,19 @@ struct KeyboardPanelBackground: View {
     }
 }
 
+/// White card surface: white in light mode, elevated dark grey in dark mode.
+/// Used for all measurement cards, summary cards, selector chips, and cell fields.
+struct KeyboardCardBackground: View {
+    let cornerRadius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(colorScheme == .dark ? Color(white: 0.20) : Color.white)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.0 : 0.10), radius: 0, x: 0, y: 1)
+    }
+}
+
 private struct KeyboardKeyBackground: View {
     let cornerRadius: CGFloat
     let isSpecial: Bool
@@ -342,16 +358,16 @@ private struct KeyboardKeyBackground: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.accentColor)
             } else if isSpecial {
-                // Special keys blend into keyboard background (iOS convention)
+                // Special (functional) keys — neutral grey
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(colorScheme == .dark
-                        ? Color(red: 0.118, green: 0.118, blue: 0.125)
+                        ? Color(white: 0.16)
                         : Color(red: 0.675, green: 0.698, blue: 0.741))
             } else {
-                // Regular keys: white light / elevated dark grey
+                // Regular (digit) keys — white light / neutral dark grey
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(colorScheme == .dark
-                        ? Color(red: 0.216, green: 0.216, blue: 0.235)
+                        ? Color(white: 0.25)
                         : Color.white)
             }
         }
@@ -425,7 +441,7 @@ struct ModeSelectorView: View {
                 let idx = CGFloat(KeyboardMode.allCases.firstIndex(of: state.mode) ?? 0)
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(colorScheme == .dark
-                        ? Color(red: 0.216, green: 0.216, blue: 0.235)
+                        ? Color(white: 0.20)
                         : Color.white)
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.18), radius: 2, x: 0, y: 1)
                     .padding(2)
@@ -441,10 +457,11 @@ struct ModeSelectorView: View {
                     Button(action: { state.setMode(mode) }) {
                         Text(mode.title)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .foregroundColor(state.mode == mode ? .primary : .secondary)
                     .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                 }
             }
         }
@@ -465,7 +482,7 @@ struct GlassTypeSelectorView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 if let preset = state.selectedPreset {
-                    Text(preset.adjustmentLabel + "mm")
+                    Text("\(preset.source.title) \(preset.adjustmentLabel)mm")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.accentColor)
                 }
@@ -493,7 +510,7 @@ struct GlassTypeSelectorView: View {
                                             .foregroundColor(isSelected ? .white : .yellow)
                                     }
                                 }
-                                Text(preset.adjustmentLabel + "mm")
+                                Text("\(preset.source.title) \(preset.adjustmentLabel)mm")
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
                             }
@@ -504,7 +521,7 @@ struct GlassTypeSelectorView: View {
                                 if isSelected {
                                     KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
                                 } else {
-                                    KeyboardPanelBackground(cornerRadius: 10)
+                                    KeyboardCardBackground(cornerRadius: 10)
                                 }
                             }
                             .foregroundColor(isSelected ? .white : .primary)
@@ -557,7 +574,7 @@ struct WeightSpecSelectorView: View {
                                     if isSelected {
                                         KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
                                     } else {
-                                        KeyboardPanelBackground(cornerRadius: 10)
+                                        KeyboardCardBackground(cornerRadius: 10)
                                     }
                                 }
                                 .foregroundColor(isSelected ? .white : .primary)
@@ -578,28 +595,51 @@ struct MeasurementDisplayView: View {
     var body: some View {
         VStack(spacing: 6) {
             if state.mode == .cutSize {
+                let source = state.selectedPreset?.source ?? .sight
                 HStack(spacing: 8) {
-                    MeasurementCardView(
-                        title: "Sight",
-                        widthExpr: state.sightWidth,
-                        heightExpr: state.sightHeight,
-                        activeField: state.activeField,
-                        widthField: .sightWidth,
-                        heightField: .sightHeight,
-                        onTap: { field in state.activeField = field }
-                    )
-
-                    MeasurementCardView(
-                        title: "Tight",
-                        widthExpr: state.tightWidth,
-                        heightExpr: state.tightHeight,
-                        activeField: state.activeField,
-                        widthField: .tightWidth,
-                        heightField: .tightHeight,
-                        onTap: { field in state.activeField = field }
-                    )
+                    if source == .sight {
+                        MeasurementCardView(
+                            title: "Sight",
+                            widthExpr: state.sightWidth,
+                            heightExpr: state.sightHeight,
+                            activeField: state.activeField,
+                            widthField: .sightWidth,
+                            heightField: .sightHeight,
+                            onTap: { field in state.activeField = field }
+                        )
+                        MeasurementCardView(
+                            title: "Tight",
+                            widthExpr: state.tightWidth,
+                            heightExpr: state.tightHeight,
+                            activeField: state.activeField,
+                            widthField: .tightWidth,
+                            heightField: .tightHeight,
+                            isOptional: true,
+                            onTap: { field in state.activeField = field }
+                        )
+                    } else {
+                        MeasurementCardView(
+                            title: "Tight",
+                            widthExpr: state.tightWidth,
+                            heightExpr: state.tightHeight,
+                            activeField: state.activeField,
+                            widthField: .tightWidth,
+                            heightField: .tightHeight,
+                            onTap: { field in state.activeField = field }
+                        )
+                        MeasurementCardView(
+                            title: "Sight",
+                            widthExpr: state.sightWidth,
+                            heightExpr: state.sightHeight,
+                            activeField: state.activeField,
+                            widthField: .sightWidth,
+                            heightField: .sightHeight,
+                            isOptional: true,
+                            onTap: { field in state.activeField = field }
+                        )
+                    }
                 }
-                CutSummaryView(result: state.result)
+                CutSummaryView(result: state.result, formulaSource: source)
             } else {
                 WeightMeasurementCardView(
                     widthExpr: state.weightWidth,
@@ -622,7 +662,7 @@ struct WeightMeasurementCardView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Text("Panel Size")
+            Text("Glazing Size")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
                 .textCase(.uppercase)
@@ -652,7 +692,7 @@ struct WeightMeasurementCardView: View {
         .frame(height: 52)
         .padding(.horizontal, 7)
         .padding(.vertical, 6)
-        .background(KeyboardPanelBackground(cornerRadius: 10))
+        .background(KeyboardCardBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
 }
@@ -664,6 +704,7 @@ struct MeasurementCardView: View {
     let activeField: MeasurementField
     let widthField: MeasurementField
     let heightField: MeasurementField
+    var isOptional: Bool = false
     let onTap: (MeasurementField) -> Void
 
     private var isCardActive: Bool {
@@ -672,9 +713,11 @@ struct MeasurementCardView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(isCardActive ? .accentColor : .secondary)
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(isCardActive ? .accentColor : .secondary)
+            }
 
             HStack(spacing: 4) {
                 CompactFieldCellView(
@@ -700,7 +743,7 @@ struct MeasurementCardView: View {
         .frame(height: 52)
         .padding(.horizontal, 5)
         .padding(.vertical, 4)
-        .background(KeyboardPanelBackground(cornerRadius: 9, lightOverlayOpacity: 0.07, darkOverlayOpacity: 0.16))
+        .background(KeyboardCardBackground(cornerRadius: 9))
         .overlay(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .stroke(isCardActive ? Color.accentColor.opacity(0.50) : Color.clear, lineWidth: 1.5)
@@ -746,7 +789,7 @@ struct CompactFieldCellView: View {
                     .fill(.thinMaterial)
                     .overlay(RoundedRectangle(cornerRadius: 7).fill(Color.accentColor.opacity(0.12)))
             } else {
-                KeyboardPanelBackground(cornerRadius: 7, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14)
+                KeyboardCardBackground(cornerRadius: 7)
             }
         }
         .overlay(
@@ -754,7 +797,7 @@ struct CompactFieldCellView: View {
                 .stroke(
                     isActive
                     ? Color.accentColor.opacity(0.85)
-                    : (colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.10)),
+                    : (colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.18)),
                     lineWidth: 1.5
                 )
         )
@@ -764,6 +807,7 @@ struct CompactFieldCellView: View {
 
 struct CutSummaryView: View {
     let result: GlazingResult?
+    var formulaSource: FormulaSource = .sight
 
     var body: some View {
         HStack(spacing: 10) {
@@ -775,11 +819,11 @@ struct CutSummaryView: View {
                 if let result {
                     Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × "))
                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundColor(.green)
+                        .foregroundColor(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 } else {
-                    Text("Enter sight and tight sizes")
+                    Text("Enter \(formulaSource.title) H and W")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(Color(UIColor.tertiaryLabel))
                 }
@@ -803,11 +847,7 @@ struct CutSummaryView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 58)
         .background {
-            KeyboardPanelBackground(cornerRadius: 12)
-            if result != nil {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.green.opacity(0.09))
-            }
+            KeyboardCardBackground(cornerRadius: 12)
         }
         .cornerRadius(12)
     }
@@ -857,7 +897,7 @@ struct WeightSummaryView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .frame(height: 58)
-        .background(KeyboardPanelBackground(cornerRadius: 12))
+        .background(KeyboardCardBackground(cornerRadius: 12))
         .cornerRadius(12)
     }
 }
@@ -876,12 +916,14 @@ struct NumpadView: View {
     private let topPadding: CGFloat = 6
     private let bottomPadding: CGFloat = 2
 
+    // Right column: row 0 = backspace (keyboard-only), rows 1-2 = host-targeting
     private let rows: [[KeypadKey]] = [
         [.digit("1"), .digit("2"), .digit("3"), .backspace],
         [.digit("4"), .digit("5"), .digit("6"), .hostDelete],
-        [.digit("7"), .digit("8"), .digit("9"), .spacer],
-        [.globe, .digit("0"), .lineBreak, .insert]
+        [.digit("7"), .digit("8"), .digit("9"), .lineBreak],
     ]
+    // Bottom row: globe + 0 + insert (rendered at 2× width)
+    private let bottomRow: [KeypadKey] = [.globe, .digit("0")]
 
     var body: some View {
         GeometryReader { proxy in
@@ -889,6 +931,7 @@ struct NumpadView: View {
             let keyWidth = floor(availableWidth / 4)
 
             VStack(spacing: keySpacing) {
+                // Rows 0-2: standard 4-column grid
                 ForEach(rows.indices, id: \.self) { rowIndex in
                     HStack(spacing: keySpacing) {
                         ForEach(rows[rowIndex].indices, id: \.self) { columnIndex in
@@ -896,12 +939,32 @@ struct NumpadView: View {
                             KeypadButtonView(
                                 key: key,
                                 onTap: { handleKey(key) },
-                                onLongPress: key == .insert ? handleLongPressInsert : nil,
+                                onLongPress: nil,
                                 onSettings: onSettings
                             )
                             .frame(width: keyWidth, height: keyHeight)
                         }
                     }
+                }
+                // Bottom row: globe + 0 + insert (2× wide, fills columns 2–3)
+                HStack(spacing: keySpacing) {
+                    ForEach(bottomRow.indices, id: \.self) { idx in
+                        let key = bottomRow[idx]
+                        KeypadButtonView(
+                            key: key,
+                            onTap: { handleKey(key) },
+                            onLongPress: nil,
+                            onSettings: onSettings
+                        )
+                        .frame(width: keyWidth, height: keyHeight)
+                    }
+                    KeypadButtonView(
+                        key: .insert,
+                        onTap: { handleKey(.insert) },
+                        onLongPress: handleLongPressInsert,
+                        onSettings: onSettings
+                    )
+                    .frame(width: keyWidth * 2 + keySpacing, height: keyHeight)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .top)
@@ -942,10 +1005,12 @@ struct NumpadView: View {
         switch state.mode {
         case .cutSize:
             guard let result = state.result else { return }
-            text = full ? result.formattedRecord : result.cutSizeOnly
+            // Tap = full multi-line record; long-press = "1@ WxH"
+            text = full ? result.formattedRecord : result.cutSizeRecord
         case .weight:
             guard let result = state.weightResult else { return }
-            text = full ? result.formattedRecord : "\(result.weightLabel)kg"
+            // Tap = weight only; long-press = full record
+            text = full ? "\(result.weightLabel)kg" : result.formattedRecord
         }
         onInsert(text)
         state.reset()
@@ -984,10 +1049,12 @@ struct KeypadButtonView: View {
     }
 
     private var isSpecial: Bool {
-        if case .digit = key {
+        switch key {
+        case .hostDelete, .lineBreak, .globe, .settings:
+            return true
+        default:
             return false
         }
-        return true
     }
 
     private var isInsert: Bool {

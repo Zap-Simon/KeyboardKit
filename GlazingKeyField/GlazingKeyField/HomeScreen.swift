@@ -5,17 +5,32 @@ struct HomeScreen: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var quoteText = ""
-    @State private var quickNote = ""
-    @State private var customer = ""
+    @State private var outputIndex:   Int    = 0
+    @State private var outputOpacity: Double = 1
+    @State private var appeared      = false
+    @State private var outputBounce  = false
+    @State private var outputTab     = 0
+
+    private let cycleExamples: [(badge: String, record: String)] = [
+        ("GLAZING", "1@ 1224x924\n\nSight*: 1200x900\nTight: 1198x896\nFormula: (+24)"),
+        ("QUICK",   "1@ 850x600"),
+        ("WEIGHT",  "Glass: DGU 4-16-4\nSize: 1224x924 | 22.6 kg\nHandling: Single person lift")
+    ]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 20) {
                     heroCard
-                    workflowCard
+                        .cardEntrance(delay: 0.05, appeared: appeared)
+                    setupCard
+                        .cardEntrance(delay: 0.13, appeared: appeared)
                     sampleOutputCard
+                        .cardEntrance(delay: 0.21, appeared: appeared)
+                    formulaInfoCard
+                        .cardEntrance(delay: 0.29, appeared: appeared)
                     testAreaCard
+                        .cardEntrance(delay: 0.37, appeared: appeared)
                 }
                 .padding(16)
             }
@@ -23,30 +38,118 @@ struct HomeScreen: View {
             .navigationTitle("GlazingKey Field")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+                appeared = true
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                guard !Task.isCancelled else { break }
+                await cycleOutput()
+            }
+        }
+    }
+
+    @MainActor
+    private func cycleOutput() async {
+        withAnimation(.easeOut(duration: 0.2)) { outputOpacity = 0 }
+        try? await Task.sleep(nanoseconds: 270_000_000)
+        outputIndex = (outputIndex + 1) % cycleExamples.count
+        withAnimation(.easeIn(duration: 0.25)) { outputOpacity = 1 }
+    }
+
+    @MainActor
+    private func tapOutput() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { outputBounce = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 160_000_000)
+            outputBounce = false
+            await cycleOutput()
+        }
+    }
+
+    private func openKeyboardSettings() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let preferred = URL(string: "App-Prefs:root=General&path=Keyboard/KEYBOARDS")
+        let fallback  = URL(string: UIApplication.openSettingsURLString)
+        if let url = preferred {
+            UIApplication.shared.open(url) { success in
+                guard !success, let fb = fallback else { return }
+                UIApplication.shared.open(fb)
+            }
+        } else if let url = fallback {
+            UIApplication.shared.open(url)
+        }
     }
 }
 
 private extension HomeScreen {
 
     var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Glass trade keyboard")
                 .font(.system(size: 11, weight: .bold))
                 .tracking(1.2)
                 .textCase(.uppercase)
                 .foregroundStyle(ScreenTheme.accent)
 
-            Text("Sight, tight, glazing size, and weight in one keyboard.")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(ScreenTheme.ink)
+            Text("Measure once.\nInsert instantly.")
+                .font(.system(size: 32, weight: .heavy, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(red: 0.18, green: 0.52, blue: 1.0),
+                                 Color(red: 0.0,  green: 0.80, blue: 0.90)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .lineSpacing(3)
 
-            Text("Install the keyboard in Settings, then use the numpad to build a glazing record directly inside Notes, email, WhatsApp, or your quoting tools.")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(ScreenTheme.inkSoft)
+            Button(action: tapOutput) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(cycleExamples[outputIndex].badge)
+                            .font(.system(size: 9, weight: .black))
+                            .tracking(1.4)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.accentColor)
+                            .clipShape(Capsule())
+                        Spacer()
+                        HStack(spacing: 5) {
+                            ForEach(cycleExamples.indices, id: \.self) { i in
+                                Circle()
+                                    .fill(i == outputIndex
+                                          ? Color.accentColor
+                                          : Color.secondary.opacity(0.3))
+                                    .frame(width: 5, height: 5)
+                                    .animation(.spring(response: 0.3), value: outputIndex)
+                            }
+                        }
+                    }
+                    Text(cycleExamples[outputIndex].record)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(ScreenTheme.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .opacity(outputOpacity)
+                }
+                .padding(14)
+                .background {
+                    MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .scaleEffect(outputBounce ? 0.97 : 1.0)
 
-            HStack(spacing: 10) {
-                badge(title: "No Full Access", systemImage: "lock.shield")
-                badge(title: "On-device only", systemImage: "iphone")
+            HStack(spacing: 8) {
+                statPill(icon: "bolt.fill",  label: "Instant calc")
+                statPill(icon: "lock.fill",  label: "Private")
+                statPill(icon: "doc.text",   label: "Any app")
             }
         }
         .padding(18)
@@ -57,35 +160,43 @@ private extension HomeScreen {
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    var workflowCard: some View {
+    var setupCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Setup")
+            Text("Get started")
                 .font(.system(size: 12, weight: .bold))
                 .tracking(1.1)
                 .textCase(.uppercase)
                 .foregroundStyle(ScreenTheme.accent)
 
-            ForEach(Array(setupSteps.enumerated()), id: \.offset) { index, step in
-                HStack(alignment: .top, spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(ScreenTheme.panelTint(for: colorScheme))
-                            .frame(width: 28, height: 28)
-                        Text("\(index + 1)")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(ScreenTheme.ink)
-                    }
+            Text("Add the keyboard once,\nuse it everywhere.")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(ScreenTheme.ink)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(step.title)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(ScreenTheme.ink)
-                        Text(step.body)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(ScreenTheme.inkSoft)
-                    }
+            Button(action: openKeyboardSettings) {
+                HStack(spacing: 12) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text("Open Keyboard Settings")
+                        .font(.system(size: 16, weight: .bold))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 13, weight: .bold))
                 }
+                .padding(.horizontal, 18)
+                .frame(height: 54)
+                .background(Color.accentColor)
+                .foregroundColor(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .buttonStyle(.plain)
+
+            Text("Settings → General → Keyboard → Keyboards → Add New Keyboard → Glazing Key")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ScreenTheme.inkSoft)
+
+            Text("Switch using the globe button next to the space bar in any app.")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ScreenTheme.inkSoft)
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -103,19 +214,96 @@ private extension HomeScreen {
                 .textCase(.uppercase)
                 .foregroundStyle(ScreenTheme.accent)
 
-            Text("1@ 1224x924\n\nSight*: 1200x900\nTight: 1198x896\nFormula: (+24)")
-                .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                .foregroundStyle(ScreenTheme.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .background {
-                    MaterialScreenInsetBackground(cornerRadius: 16, tint: ScreenTheme.panelTint(for: colorScheme))
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            Picker("Output type", selection: $outputTab.animation(.spring(response: 0.3, dampingFraction: 0.8))) {
+                Text("Glazing").tag(0)
+                Text("Weight").tag(1)
+            }
+            .pickerStyle(.segmented)
 
-            Text("Tap the tick to insert the full record. Long-press it to insert only the glazing size.")
-                .font(.system(size: 13, weight: .medium))
+            Group {
+                if outputTab == 0 {
+                    Text("1@ 1224x924\n\nSight*: 1200x900\nTight: 1198x896\nFormula: (+24)")
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal:   .move(edge: .leading).combined(with: .opacity)
+                        ))
+                } else {
+                    Text("Glass: DGU 4-16-4 | Size: 1224x924\nArea: 1.131m2 | Weight: 22.6kg\nHandling: Single person lift")
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal:   .move(edge: .leading).combined(with: .opacity)
+                        ))
+                }
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: outputTab)
+            .font(.system(size: 15, weight: .semibold, design: .monospaced))
+            .foregroundStyle(ScreenTheme.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background {
+                MaterialScreenInsetBackground(cornerRadius: 16, tint: ScreenTheme.panelTint(for: colorScheme))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            HStack(spacing: 10) {
+                bentoTile(
+                    icon: "hand.tap",
+                    title: "Tap ✓",
+                    body: outputTab == 0
+                        ? "Inserts the full record — cut size, sight, tight, and formula."
+                        : "Inserts just the weight — e.g. \"22.6kg\"."
+                )
+                bentoTile(
+                    icon: "hand.tap.fill",
+                    title: "Long-press ✓",
+                    body: outputTab == 0
+                        ? "Inserts just the cut size line — \"1@ 600x900\". Quick for lists."
+                        : "Inserts the full weight record with area and handling note."
+                )
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    var formulaInfoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Formula Sources")
+                .font(.system(size: 12, weight: .bold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(ScreenTheme.accent)
+
+            Text("Each formula preset is tied to either a Sight or Tight measurement. Enter that measurement and the keyboard calculates the glazing cut size instantly.")
+                .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(ScreenTheme.inkSoft)
+
+            HStack(spacing: 10) {
+                bentoTile(
+                    icon: "arrow.right.circle",
+                    title: "Sight → Cut",
+                    body: "Add the formula value to the Sight size. Common for double-glazed units."
+                )
+                bentoTile(
+                    icon: "arrow.left.circle",
+                    title: "Tight → Cut",
+                    body: "Add the formula value to the Tight rebate. Common for single-pane frames."
+                )
+            }
+
+            Text("Where possible, always investigate the opposite measurement (Sight or Tight). It varies by frame type and confirms your clearance is correct.")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ScreenTheme.inkSoft)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background {
+                    MaterialScreenInsetBackground(cornerRadius: 12, tint: ScreenTheme.panelTint(for: colorScheme))
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -127,27 +315,15 @@ private extension HomeScreen {
 
     var testAreaCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Try The Keyboard")
+            Text("Try It Here")
                 .font(.system(size: 12, weight: .bold))
                 .tracking(1.1)
                 .textCase(.uppercase)
                 .foregroundStyle(ScreenTheme.accent)
 
-            TextField("Customer or site", text: $customer)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .frame(height: 46)
-                .background {
-                    MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
-                }
-
-            TextField("Quick note", text: $quickNote)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .frame(height: 46)
-                .background {
-                    MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
-                }
+            Text("Tap below, switch to Glazing Key with the globe button, and start measuring.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(ScreenTheme.inkSoft)
 
             TextEditor(text: $quoteText)
                 .scrollContentBackground(.hidden)
@@ -162,9 +338,18 @@ private extension HomeScreen {
                         .stroke(ScreenTheme.line, lineWidth: 1)
                 )
 
-            Text("Switch to Glazing Key with the globe button after enabling it in iPhone Settings.")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(ScreenTheme.inkSoft)
+            if !quoteText.isEmpty {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(.spring(response: 0.3)) { quoteText = "" }
+                } label: {
+                    Label("Clear", systemImage: "xmark.circle")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(ScreenTheme.inkSoft)
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.88)))
+            }
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -172,30 +357,54 @@ private extension HomeScreen {
             MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
         }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .animation(.spring(response: 0.35), value: quoteText.isEmpty)
     }
 
-    func badge(title: String, systemImage: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
-            Text(title)
-                .font(.system(size: 12, weight: .bold))
+    func statPill(icon: String, label: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(ScreenTheme.accent)
+            Text(label)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(ScreenTheme.inkSoft)
         }
-        .padding(.horizontal, 12)
-        .frame(height: 32)
+        .padding(.horizontal, 10)
+        .frame(height: 30)
         .background {
-            MaterialScreenInsetBackground(cornerRadius: 16, tint: ScreenTheme.panelTint(for: colorScheme))
+            MaterialScreenInsetBackground(cornerRadius: 15, tint: ScreenTheme.panelTint(for: colorScheme))
         }
         .clipShape(Capsule())
     }
 
-    var setupSteps: [(title: String, body: String)] {
-        [
-            ("Open Settings", "Go to General, then Keyboard."),
-            ("Add Keyboard", "Choose Keyboards, then Add New Keyboard."),
-            ("Select Glazing Key", "Pick Glazing Key from the third-party list."),
-            ("Use The Globe", "Open any text field and switch keyboards with the globe button.")
-        ]
+    func bentoTile(icon: String, title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(ScreenTheme.accent)
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(ScreenTheme.ink)
+            Text(body)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ScreenTheme.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private extension View {
+    func cardEntrance(delay: Double, appeared: Bool) -> some View {
+        self
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 28)
+            .animation(.spring(response: 0.55, dampingFraction: 0.82).delay(delay), value: appeared)
     }
 }
 

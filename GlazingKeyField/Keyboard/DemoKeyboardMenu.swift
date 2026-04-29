@@ -31,45 +31,58 @@ enum ExpressionParser {
     }
 }
 
-struct GlazingResult {
-    enum CalculationSource {
-        case sight
-        case tight
+/// Which measurement the formula is applied to when calculating the glazing cut size.
+enum FormulaSource: String, Codable, CaseIterable, Identifiable {
+    case sight
+    case tight
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .sight: return "Sight"
+        case .tight: return "Tight"
+        }
     }
 
-    let sightWidth: Int
-    let sightHeight: Int
-    let tightWidth: Int
-    let tightHeight: Int
+    var opposite: FormulaSource {
+        self == .sight ? .tight : .sight
+    }
+}
+
+struct GlazingResult {
+    /// Source measurement (required). Opposite is optional — only present if user entered it.
+    let sightWidth: Int?
+    let sightHeight: Int?
+    let tightWidth: Int?
+    let tightHeight: Int?
     let cutWidth: Int
     let cutHeight: Int
     let adjustment: Int
     let presetName: String
-    let calculationSource: CalculationSource
+    let calculationSource: FormulaSource
+    let hasOppositeMeasurement: Bool
 
     var formattedRecord: String {
-        let sightLabel = calculationSource == .sight ? "Sight*" : "Sight"
-        let tightLabel = calculationSource == .tight ? "Tight*" : "Tight"
-        return [
-            "1@ \(cutSizeOnly)",
-            "",
-            "\(sightLabel): \(sightSize)",
-            "\(tightLabel): \(tightSize)",
-            "Formula: \(formulaAdjustment)"
-        ]
-        .joined(separator: "\n")
+        var lines = ["1@ \(cutSizeOnly)", ""]
+        if let sw = sightWidth, let sh = sightHeight {
+            let label = calculationSource == .sight ? "Sight*" : "Sight"
+            lines.append("\(label): \(sh)x\(sw)")
+        }
+        if let tw = tightWidth, let th = tightHeight {
+            let label = calculationSource == .tight ? "Tight*" : "Tight"
+            lines.append("\(label): \(th)x\(tw)")
+        }
+        lines.append("Formula: \(formulaAdjustment)")
+        return lines.joined(separator: "\n")
     }
 
     var cutSizeOnly: String {
         "\(cutHeight)x\(cutWidth)"
     }
 
-    var sightSize: String {
-        "\(sightHeight)x\(sightWidth)"
-    }
-
-    var tightSize: String {
-        "\(tightHeight)x\(tightWidth)"
+    var cutSizeRecord: String {
+        "1@ \(cutSizeOnly)"
     }
 
     private var formulaAdjustment: String {
@@ -79,31 +92,9 @@ struct GlazingResult {
 
 struct GlazingCalculator {
 
-    static func calculate(
-        sightWidth: Int,
-        sightHeight: Int,
-        tightWidth: Int,
-        tightHeight: Int,
-        preset: GlassPreset
-    ) -> GlazingResult {
-        let adjustment = preset.adjustment
-        let source: GlazingResult.CalculationSource = adjustment > 0 ? .sight : .tight
-        let baseWidth = source == .sight ? sightWidth : tightWidth
-        let baseHeight = source == .sight ? sightHeight : tightHeight
-
-        return GlazingResult(
-            sightWidth: sightWidth,
-            sightHeight: sightHeight,
-            tightWidth: tightWidth,
-            tightHeight: tightHeight,
-            cutWidth: baseWidth + adjustment,
-            cutHeight: baseHeight + adjustment,
-            adjustment: adjustment,
-            presetName: preset.name,
-            calculationSource: source
-        )
-    }
-
+    /// Calculates the glazing cut size from expression strings.
+    /// Only the `preset.source` measurement pair is required; the opposite is optional.
+    /// Returns `nil` if the required pair cannot be parsed or is zero.
     static func calculate(
         sightWidthExpr: String,
         sightHeightExpr: String,
@@ -111,21 +102,39 @@ struct GlazingCalculator {
         tightHeightExpr: String,
         preset: GlassPreset
     ) -> GlazingResult? {
-        guard
-            let sightWidth = ExpressionParser.evaluate(sightWidthExpr),
-            let sightHeight = ExpressionParser.evaluate(sightHeightExpr),
-            let tightWidth = ExpressionParser.evaluate(tightWidthExpr),
-            let tightHeight = ExpressionParser.evaluate(tightHeightExpr)
-        else {
-            return nil
-        }
+        let source = preset.source
 
-        return calculate(
-            sightWidth: sightWidth,
-            sightHeight: sightHeight,
-            tightWidth: tightWidth,
-            tightHeight: tightHeight,
-            preset: preset
+        // Parse the required (source) measurement pair
+        let srcWidthExpr  = source == .sight ? sightWidthExpr  : tightWidthExpr
+        let srcHeightExpr = source == .sight ? sightHeightExpr : tightHeightExpr
+        guard
+            let srcWidth  = ExpressionParser.evaluate(srcWidthExpr),  srcWidth  > 0,
+            let srcHeight = ExpressionParser.evaluate(srcHeightExpr), srcHeight > 0
+        else { return nil }
+
+        // Parse the optional opposite measurement pair
+        let oppWidthExpr  = source == .sight ? tightWidthExpr  : sightWidthExpr
+        let oppHeightExpr = source == .sight ? tightHeightExpr : sightHeightExpr
+        let oppWidth  = ExpressionParser.evaluate(oppWidthExpr)
+        let oppHeight = ExpressionParser.evaluate(oppHeightExpr)
+        let hasOpposite = oppWidth != nil && oppHeight != nil
+
+        let sightW: Int? = source == .sight ? srcWidth  : oppWidth
+        let sightH: Int? = source == .sight ? srcHeight : oppHeight
+        let tightW: Int? = source == .tight ? srcWidth  : oppWidth
+        let tightH: Int? = source == .tight ? srcHeight : oppHeight
+
+        return GlazingResult(
+            sightWidth:  sightW,
+            sightHeight: sightH,
+            tightWidth:  tightW,
+            tightHeight: tightH,
+            cutWidth:  srcWidth  + preset.adjustment,
+            cutHeight: srcHeight + preset.adjustment,
+            adjustment: preset.adjustment,
+            presetName: preset.name,
+            calculationSource: source,
+            hasOppositeMeasurement: hasOpposite
         )
     }
 }
@@ -219,11 +228,17 @@ struct GlassPreset: Identifiable, Codable, Equatable {
     var id: UUID
     var name: String
     var adjustment: Int
+    /// Which measurement the formula is applied to when computing the glazing cut size.
+    var source: FormulaSource
+    /// Built-in presets are not deletable by the user.
+    var isBuiltIn: Bool
 
-    init(id: UUID = UUID(), name: String, adjustment: Int) {
+    init(id: UUID = UUID(), name: String, adjustment: Int, source: FormulaSource = .sight, isBuiltIn: Bool = false) {
         self.id = id
         self.name = name
         self.adjustment = adjustment
+        self.source = source
+        self.isBuiltIn = isBuiltIn
     }
 
     var adjustmentLabel: String {
@@ -234,6 +249,8 @@ struct GlassPreset: Identifiable, Codable, Equatable {
         case id
         case name
         case adjustment
+        case source
+        case isBuiltIn
         case deductions
     }
 
@@ -242,13 +259,16 @@ struct GlassPreset: Identifiable, Codable, Equatable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decode(String.self, forKey: .name)
 
-        if let adjustment = try container.decodeIfPresent(Int.self, forKey: .adjustment) {
-            self.adjustment = adjustment
-            return
+        let adj: Int
+        if let a = try container.decodeIfPresent(Int.self, forKey: .adjustment) {
+            adj = a
+        } else {
+            let oldDeductions = try container.decodeIfPresent([String: Int].self, forKey: .deductions) ?? [:]
+            adj = oldDeductions["uPVC"] ?? oldDeductions.values.first ?? 0
         }
-
-        let oldDeductions = try container.decodeIfPresent([String: Int].self, forKey: .deductions) ?? [:]
-        adjustment = oldDeductions["uPVC"] ?? oldDeductions.values.first ?? 0
+        adjustment = adj
+        source = try container.decodeIfPresent(FormulaSource.self, forKey: .source) ?? (adj >= 0 ? .sight : .tight)
+        isBuiltIn = try container.decodeIfPresent(Bool.self, forKey: .isBuiltIn) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -256,14 +276,16 @@ struct GlassPreset: Identifiable, Codable, Equatable {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(adjustment, forKey: .adjustment)
+        try container.encode(source, forKey: .source)
+        try container.encode(isBuiltIn, forKey: .isBuiltIn)
     }
 }
 
 extension GlassPreset {
     static let defaults: [GlassPreset] = [
-        GlassPreset(name: "Double Glazing", adjustment: 24),
-        GlassPreset(name: "Single Aluminium", adjustment: -12),
-        GlassPreset(name: "Single Timber", adjustment: -2)
+        GlassPreset(name: "Double Glazing",   adjustment:  24, source: .sight, isBuiltIn: true),
+        GlassPreset(name: "Single Aluminium", adjustment: -12, source: .tight, isBuiltIn: true),
+        GlassPreset(name: "Single Timber",    adjustment:  -2, source: .tight, isBuiltIn: true)
     ]
 }
 
