@@ -23,20 +23,20 @@ struct HomeScreen: View {
                 VStack(spacing: 20) {
                     heroCard
                         .cardEntrance(delay: 0.05, appeared: appeared)
-                    setupCard
-                        .cardEntrance(delay: 0.13, appeared: appeared)
-                    fullAccessCard
-                        .cardEntrance(delay: 0.19, appeared: appeared)
-                    sampleOutputCard
-                        .cardEntrance(delay: 0.25, appeared: appeared)
-                    formulaInfoCard
-                        .cardEntrance(delay: 0.31, appeared: appeared)
                     wganzCard
-                        .cardEntrance(delay: 0.36, appeared: appeared)
+                        .cardEntrance(delay: 0.11, appeared: appeared)
+                    setupCard
+                        .cardEntrance(delay: 0.17, appeared: appeared)
+                    fullAccessCard
+                        .cardEntrance(delay: 0.23, appeared: appeared)
+                    sampleOutputCard
+                        .cardEntrance(delay: 0.29, appeared: appeared)
+                    formulaInfoCard
+                        .cardEntrance(delay: 0.35, appeared: appeared)
                     workflowCard
-                        .cardEntrance(delay: 0.42, appeared: appeared)
+                        .cardEntrance(delay: 0.41, appeared: appeared)
                     testAreaCard
-                        .cardEntrance(delay: 0.49, appeared: appeared)
+                        .cardEntrance(delay: 0.47, appeared: appeared)
                 }
                 .padding(16)
             }
@@ -79,7 +79,8 @@ struct HomeScreen: View {
 
     private func openKeyboardSettings() {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        let preferred = URL(string: "App-Prefs:root=General&path=Keyboard/KEYBOARDS")
+        // Deep-link directly to Settings → General → Keyboard → Keyboards
+        let preferred = URL(string: "App-Prefs:Keyboards")
         let fallback  = URL(string: UIApplication.openSettingsURLString)
         if let url = preferred {
             UIApplication.shared.open(url) { success in
@@ -140,7 +141,7 @@ private extension HomeScreen {
                     Text(cycleExamples[outputIndex].record)
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         .foregroundStyle(ScreenTheme.ink)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
                         .opacity(outputOpacity)
                 }
                 .padding(14)
@@ -167,81 +168,76 @@ private extension HomeScreen {
     }
 
     var fullAccessCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
 
             // Header
-            Text("Full Access")
+            Text("FULL ACCESS")
                 .font(.system(size: 12, weight: .bold))
                 .tracking(1.1)
-                .textCase(.uppercase)
                 .foregroundStyle(ScreenTheme.accent)
 
-            // Hero row
-            HStack(alignment: .top, spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(ScreenTheme.accent.opacity(0.12))
-                        .frame(width: 52, height: 52)
-                    Image(systemName: "lock.open.fill")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(ScreenTheme.accent)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Unlock the full keyboard")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(ScreenTheme.ink)
-                    Text("Full Access enables clipboard history and saved login credentials — stored securely on-device, never shared.")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(ScreenTheme.inkSoft)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            Text("Enable to unlock clipboard\nhistory & saved logins.")
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(ScreenTheme.ink)
 
-            // Step-by-step path
-            VStack(alignment: .leading, spacing: 0) {
-                fullAccessStep(number: 1, text: "Settings")
-                stepArrow
-                fullAccessStep(number: 2, text: "General")
-                stepArrow
-                fullAccessStep(number: 3, text: "Keyboard")
-                stepArrow
-                fullAccessStep(number: 4, text: "Keyboards")
-                stepArrow
-                fullAccessStep(number: 5, text: "Glazing Key")
-                stepArrow
-                fullAccessStep(number: 6, text: "Allow Full Access  \u{2192}  toggle ON")
+            // Toggle illustration
+            HStack(spacing: 12) {
+                Image(systemName: "lock.open.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(ScreenTheme.accent)
+                    .frame(width: 36)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Allow Full Access")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(ScreenTheme.ink)
+                    Text("Glazing Key · Keyboards settings")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(ScreenTheme.inkSoft)
+                }
+
+                Spacer()
+
+                // Simulated ON toggle
+                ZStack {
+                    Capsule()
+                        .fill(Color.green)
+                        .frame(width: 51, height: 31)
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 27, height: 27)
+                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                        .offset(x: 10)
+                }
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
             .background {
                 MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
             }
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.green.opacity(0.35), lineWidth: 1.5)
+            )
 
-            // What it unlocks bento
-            HStack(spacing: 10) {
-                bentoTile(
-                    icon: "clock.arrow.circlepath",
-                    title: "Clipboard history",
-                    body: "Every inserted record is saved so you can re-insert it at any time."
-                )
-                bentoTile(
-                    icon: "key.fill",
-                    title: "Saved logins",
-                    body: "Username and password stored in the iOS Keychain — tap once to fill."
-                )
-            }
-
-            // Privacy note
+            // Compact path
             HStack(spacing: 6) {
-                Image(systemName: "shield.fill")
+                ForEach(["Settings", "General", "Keyboard", "Keyboards", "Glazing Key"], id: \.self) { step in
+                    Text(step)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(ScreenTheme.inkSoft)
+                    if step != "Glazing Key" {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(ScreenTheme.accent.opacity(0.5))
+                    }
+                }
+                Text("→ toggle ON")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(ScreenTheme.accent)
-                Text("All data stays on your device. Nothing is sent to any server or synced to iCloud.")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(ScreenTheme.inkSoft)
+                    .foregroundStyle(Color.green)
             }
-            .padding(10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 MaterialScreenInsetBackground(cornerRadius: 10, tint: ScreenTheme.panelTint(for: colorScheme))
@@ -254,32 +250,6 @@ private extension HomeScreen {
             MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
         }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    private func fullAccessStep(number: Int, text: String) -> some View {
-        HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(ScreenTheme.accent)
-                    .frame(width: 22, height: 22)
-                Text("\(number)")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundStyle(.white)
-            }
-            Text(text)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(ScreenTheme.ink)
-        }
-    }
-
-    private var stepArrow: some View {
-        HStack(spacing: 0) {
-            Spacer().frame(width: 10)
-            Rectangle()
-                .fill(ScreenTheme.accent.opacity(0.3))
-                .frame(width: 1.5, height: 10)
-                .padding(.leading, 10) // align with centre of numbered circle
-        }
     }
 
     var setupCard: some View {
@@ -341,6 +311,7 @@ private extension HomeScreen {
                 Text("Weight").tag(1)
             }
             .pickerStyle(.segmented)
+            .frame(height: 38)
 
             Group {
                 if outputTab == 0 {
@@ -367,7 +338,7 @@ private extension HomeScreen {
             }
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 bentoTile(
                     icon: "hand.tap",
                     title: "Tap ✓",
@@ -532,23 +503,14 @@ private extension HomeScreen {
         VStack(alignment: .leading, spacing: 14) {
 
             // Header
-            Label("Workflow", systemImage: "arrow.triangle.2.circlepath")
+            Text("WORKFLOW")
                 .font(.system(size: 12, weight: .bold))
                 .tracking(1.1)
-                .textCase(.uppercase)
                 .foregroundStyle(ScreenTheme.accent)
-                .labelStyle(.iconOnly)
 
-            HStack(alignment: .top) {
-                Label("How it works", systemImage: "arrow.triangle.2.circlepath")
-                    .labelStyle(.titleOnly)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(ScreenTheme.ink)
-                Spacer()
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(ScreenTheme.accent.opacity(0.5))
-            }
+            Text("How it works")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(ScreenTheme.ink)
 
             // Formula auto-calc row (full-width)
             VStack(alignment: .leading, spacing: 6) {
@@ -707,7 +669,7 @@ private extension HomeScreen {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             // 2×2 bento grid
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 bentoTile(
                     icon: "exclamationmark.triangle",
                     title: "Clearance check",
@@ -720,7 +682,7 @@ private extension HomeScreen {
                 )
             }
 
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 bentoTile(
                     icon: "square.stack",
                     title: "Glass type → weight",
@@ -795,9 +757,10 @@ private extension HomeScreen {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(ScreenTheme.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
             MaterialScreenInsetBackground(cornerRadius: 14, tint: ScreenTheme.panelTint(for: colorScheme))
         }

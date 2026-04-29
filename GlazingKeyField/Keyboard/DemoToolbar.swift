@@ -39,7 +39,6 @@ struct SettingsPanelView: View {
 
     @State private var editingPreset: GlassPreset?
     @State private var isCreatingPreset = false
-    @AppStorage(KeyboardPreferences.debugModeKey, store: UserDefaults.standard) private var isDebugModeEnabled = false
 
     var body: some View {
         Group {
@@ -111,32 +110,7 @@ struct SettingsPanelView: View {
                 }
                 .padding(.bottom, 4)
             }
-
-            debugModeRow
         }
-    }
-
-    private var debugModeRow: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Debug Mode")
-                    .font(.system(size: 13, weight: .semibold))
-                Text("Show or hide the diagnostics overlay while testing the keyboard.")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer(minLength: 8)
-
-            Toggle("Debug Mode", isOn: $isDebugModeEnabled)
-                .labelsHidden()
-                .tint(.accentColor)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(SettingsSurfaceBackground(cornerRadius: 10))
-        .cornerRadius(10)
     }
 
     private func closeEditor() {
@@ -429,6 +403,8 @@ struct PresetNamePadView: View {
     let onBackspace: () -> Void
     let onClear: () -> Void
 
+    @State private var isUppercase = true
+
     private let rows: [[String]] = [
         ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
         ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
@@ -441,8 +417,9 @@ struct PresetNamePadView: View {
             ForEach(rows.indices, id: \.self) { rowIndex in
                 HStack(spacing: 6) {
                     ForEach(rows[rowIndex], id: \.self) { key in
-                        Button(action: { onCharacter(key) }) {
-                            Text(key)
+                        let displayKey = isUppercase ? key : key.lowercased()
+                        Button(action: { onCharacter(displayKey) }) {
+                            Text(displayKey)
                                 .font(.system(size: 14, weight: .medium))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 34)
@@ -459,9 +436,19 @@ struct PresetNamePadView: View {
                 Button(action: onClear) {
                     Text("Clear")
                         .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 70, height: 36)
+                        .frame(width: 56, height: 36)
                         .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.02))
                         .foregroundColor(.primary)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+
+                Button(action: { isUppercase.toggle() }) {
+                    Image(systemName: isUppercase ? "shift.fill" : "shift")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 56, height: 36)
+                        .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.02))
+                        .foregroundColor(isUppercase ? .accentColor : .primary)
                         .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -480,7 +467,7 @@ struct PresetNamePadView: View {
                 Button(action: onBackspace) {
                     Image(systemName: "delete.left")
                         .font(.system(size: 14, weight: .semibold))
-                        .frame(width: 70, height: 36)
+                        .frame(width: 56, height: 36)
                         .background(SettingsSurfaceBackground(cornerRadius: 8, lightOverlayOpacity: 0.06, darkOverlayOpacity: 0.14, shadowOpacity: 0.02))
                         .foregroundColor(.primary)
                         .cornerRadius(8)

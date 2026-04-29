@@ -102,6 +102,120 @@ All domain code lives in `DemoKeyboardMenu.swift`:
 
 ---
 
+## Calculation Logic
+
+### Glazing cut size formula
+
+```
+cut = source_measurement + preset.adjustment
+```
+
+- `source` is either **Sight** or **Tight**, set per-preset
+- The opposite measurement is **optional** — entering it unlocks extra diagnostics (clearance, S↔T diff)
+- `adjustment` can be positive or negative; `ExpressionParser` supports simple `+`/`-` expressions in any field (e.g. `890+5`)
+
+**Built-in presets:**
+
+| Preset | Source | Adjustment | Meaning |
+|---|---|---|---|
+| Double Glazing | Sight | +24 | Cut = sight + 24mm (rebate covers 12mm each side) |
+| Single Aluminium | Tight | −12 | Cut = tight − 12mm (6mm clearance each side) |
+| Single Timber | Tight | −2 | Cut = tight − 2mm (1mm clearance each side) |
+
+Custom presets are stored per-user in `UserDefaults` and can use any source and any adjustment value.
+
+---
+
+### Clearance (gap between glass and frame)
+
+Clearance is calculated from the **tight** measurement when available:
+
+```
+clearance_per_side = (tight − cut) / 2
+```
+
+A positive value means the glass fits with a gap. A negative value means the glass is **physically larger than the opening** — it won't fit.
+
+Overlap into the rebate is calculated from the **sight** measurement:
+
+```
+overlap_per_side = (cut − sight) / 2
+```
+
+**Clearance status rules** (shown as a badge on the clearance row):
+
+| Condition | Status | Badge colour |
+|---|---|---|
+| Any clearance value < 0 | Oversize! — won't fit | 🔴 Red |
+| Both H and W within 2mm of each other | Consistent | 🟢 Green |
+| H/W difference 2–5mm | Check measurements | 🟠 Orange |
+| H/W difference ≥ 5mm | Re-measure! | 🔴 Red |
+| Only one dimension available | No badge | — |
+
+When oversize: row background turns red, label changes to **"Oversize!"**, and the printed record includes a `⚠ Glass oversize: …` warning line.
+
+---
+
+### Sight–Tight difference row (S↔T)
+
+Shows below the clearance row. Compares the rebate depth implied by each measurement:
+
+```
+diff_height = tight_height − sight_height
+diff_width  = tight_width  − sight_width
+```
+
+A healthy result should show equal (or near-equal) differences in both dimensions, meaning the rebate depth is consistent all round.
+
+**Display rules:**
+
+| Inputs entered | Row visible? | Value shown | Badge |
+|---|---|---|---|
+| Neither sight nor tight | Hidden | — | — |
+| Only sight entered | ✅ Visible | "Measure tight opening" | 🔍 Investigate / Orange |
+| Only tight entered | ✅ Visible | "Measure sight opening" | 🔍 Investigate / Orange |
+| Both entered, diff = 0 on both | ✅ Visible | H 0mm  W 0mm | ⚠ Sight = Tight? / Orange |
+| Both entered, \|H diff − W diff\| ≤ 3mm | ✅ Visible | H Xmm  W Xmm | ✓ Consistent / Green |
+| Both entered, \|H diff − W diff\| > 3mm | ✅ Visible | H Xmm  W Xmm | ⚠ Check / Orange |
+
+> **Why "Investigate" when one is missing?**  
+> If only sight was measured, the user has everything needed for a sight-based formula but lacks the tight measurement to calculate clearance or verify the rebate. The badge prompts them to go measure the other dimension on site.
+>
+> **Why "Sight = Tight?" at zero?**  
+> If tight == sight, either the frame has zero rebate depth (unusual) or one measurement was entered in the wrong field. Worth verifying on site before cutting.
+
+---
+
+### Weight calculation
+
+```
+area_m2  = (cut_width_mm / 1000) × (cut_height_mm / 1000)
+weight_kg = area_m2 × areal_density_kg_per_m2
+```
+
+**Built-in glass specs (areal density):**
+
+| Spec | kg/m² |
+|---|---|
+| Single 4mm | 10 |
+| Single 6mm | 15 |
+| Single 10mm | 25 |
+| DGU 4-16-4 | 20 |
+| Laminate 6.38mm | 16 |
+
+**Handling recommendation thresholds:**
+
+| Weight | Recommendation |
+|---|---|
+| < 25 kg | Single person lift |
+| 25–49 kg | Two person lift |
+| 50–89 kg | Team / manual aid |
+| ≥ 90 kg | Mechanical lift recommended |
+
+Weight mode uses the confirmed glass type from the **Glass Type** panel and the cut dimensions from Glazing mode. If either is not yet set, a prompt card is shown instead of the result.
+
+---
+
 ## What KeyboardKit Provides
 
 This keyboard uses KeyboardKit as a **host framework** — it handles the UIKit/SwiftUI bridge, extension lifecycle, and licence management. The glazing UI is entirely custom. Here's what KeyboardKit makes available that could be adopted:

@@ -135,7 +135,7 @@ private struct ClipboardEntryRow: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
-                Text(entry.date, style: .relative)
+                Text(staticRelativeTime(entry.date))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(.secondary)
             }
@@ -173,5 +173,14 @@ private struct ClipboardEntryRow: View {
         .onLongPressGesture {
             withAnimation(.spring(response: 0.2)) { showDelete.toggle() }
         }
+    }
+
+    /// Lightweight static relative time label — computed once, no live timer.
+    private func staticRelativeTime(_ date: Date) -> String {
+        let diff = Int(Date().timeIntervalSince(date))
+        if diff < 60  { return "Just now" }
+        if diff < 3600 { return "\(diff / 60)m ago" }
+        if diff < 86400 { return "\(diff / 3600)h ago" }
+        return "\(diff / 86400)d ago"
     }
 }

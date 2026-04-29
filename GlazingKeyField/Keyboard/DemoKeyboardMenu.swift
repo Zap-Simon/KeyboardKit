@@ -69,16 +69,25 @@ struct GlazingClearance {
         return abs(h - w)
     }
 
+    /// True when the cut glass is larger than the frame opening (glass won't fit).
+    var isOversize: Bool {
+        if let h = heightPerSideMm, h < 0 { return true }
+        if let w = widthPerSideMm,  w < 0 { return true }
+        return false
+    }
+
     enum Status {
         case ok                  // delta < 2mm or only one dim
         case check               // 2–5mm delta
         case remeasure           // ≥ 5mm delta
+        case oversize            // clearance is negative — glass > frame
 
         var symbol: String {
             switch self {
             case .ok:        return "✓"
             case .check:     return "⚠"
             case .remeasure: return "⚠"
+            case .oversize:  return "✗"
             }
         }
 
@@ -87,11 +96,13 @@ struct GlazingClearance {
             case .ok:        return "Consistent"
             case .check:     return "Check measurements"
             case .remeasure: return "Re-measure!"
+            case .oversize:  return "Glass too large!"
             }
         }
     }
 
     var status: Status {
+        if isOversize { return .oversize }
         guard let d = delta else { return .ok }
         if d < 2 { return .ok }
         if d < 5 { return .check }
@@ -100,6 +111,11 @@ struct GlazingClearance {
 
     /// Compact description for the print record.
     var printSummary: String {
+        if isOversize {
+            let h = heightPerSideMm.map { fmtMm($0) + "mm" } ?? "?"
+            let w = widthPerSideMm.map  { fmtMm($0) + "mm" } ?? "?"
+            return "⚠ Glass oversize: H \(h)/side  W \(w)/side — glass LARGER than tight opening"
+        }
         if let h = heightPerSideMm, let w = widthPerSideMm {
             let hStr = fmtMm(h)
             let wStr = fmtMm(w)
@@ -163,6 +179,34 @@ struct GlazingResult {
         return c.heightPerSideMm != nil || c.heightOverlapMm != nil
     }
 
+    // MARK: Sight–Tight difference
+
+    /// Positive when tight > sight (normal: tight is the frame opening, sight is the visible opening)
+    var sightTightHeightDiff: Int? {
+        guard let sh = sightHeight, let th = tightHeight else { return nil }
+        return th - sh
+    }
+
+    var sightTightWidthDiff: Int? {
+        guard let sw = sightWidth, let tw = tightWidth else { return nil }
+        return tw - sw
+    }
+
+    /// True when height and width diffs are within 3mm of each other (consistent rebate all round)
+    var sightTightDiffConsistent: Bool? {
+        guard let h = sightTightHeightDiff, let w = sightTightWidthDiff else { return nil }
+        return abs(h - w) <= 3
+    }
+
+    /// Non-nil when exactly one of sight/tight is present — prompt to measure the missing one.
+    var sightTightInvestigateLabel: String? {
+        let hasSight = sightHeight != nil
+        let hasTight = tightHeight != nil
+        if hasSight && !hasTight { return "Measure tight opening" }
+        if hasTight && !hasSight { return "Measure sight opening" }
+        return nil
+    }
+
     // MARK: Record text
 
     var formattedRecord: String {
@@ -176,6 +220,11 @@ struct GlazingResult {
             lines.append("\(label): \(th)x\(tw)")
         }
         lines.append("Formula: \(formulaAdjustment)")
+        if let hd = sightTightHeightDiff, let wd = sightTightWidthDiff {
+            let consistent = abs(hd - wd) <= 3
+            let status = consistent ? "✓ Consistent" : "⚠ Check"
+            lines.append("Diff: H \(hd)mm  W \(wd)mm  \(status)")
+        }
         let summary = clearance.printSummary
         if !summary.isEmpty { lines.append(summary) }
         return lines.joined(separator: "\n")
