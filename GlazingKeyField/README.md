@@ -152,46 +152,32 @@ Reference: [docs.keyboardkit.com/getting-started](https://docs.keyboardkit.com/d
 |---|---|---|---|
 | **1. Add package** | Binary XCFramework, app target only | Local `Package.swift` at repo root, linked to app target only | ✅ |
 | **2. KeyboardApp** | Define in a shared file, add to both targets | `KeyboardApp+Demo.swift` added to both app + keyboard | ✅ |
-| **3. Extension setup** | Override `viewWillSetupKeyboardKit()`, call `setupKeyboardKit(for:completion:)` | Calls older `setup(for:)` in `viewDidLoad` instead | ⚠️ See below |
+| **3. Extension setup** | Override `viewWillSetupKeyboardKit()`, call `setupKeyboardKit(for:completion:)` | `viewWillSetupKeyboardKit()` + `setupKeyboardKit(for:completion:)` | ✅ Fixed |
 | **4. Custom view** | Override `viewWillSetupKeyboardView()`, call `setupKeyboardView { [weak self] }` | Done correctly, with `[weak self]` guard | ✅ |
 | **5. Main app** | Use `KeyboardAppView(for:)` as root | `GlazingKeyFieldApp` wraps `HomeScreen` in `KeyboardAppView(for: .glazingKeyField)` | ✅ |
 | **6. State & services** | Customise in `setupKeyboardKit` completion block | Not customised (not needed for fully custom view) | ✅ |
 
-### ⚠️ `setup(for:)` vs `setupKeyboardKit(for:completion:)`
+### ✅ `setupKeyboardKit(for:completion:)` — migrated
 
-The current `KeyboardViewController` calls the **older** `setup(for:)` API in `viewDidLoad`:
+`setup(for:)` (deprecated) has been replaced. `viewWillSetupKeyboardKit()` now calls `setupKeyboardKit(for:completion:)`, and `renderState.isContentVisible = false` is set before `super.viewDidLoad()` so the view is hidden before the framework mounts it:
 
 ```swift
-// Current (older API)
 override func viewDidLoad() {
+    renderState.isContentVisible = false  // set before super mounts the view
+    view.backgroundColor = .clear
+    view.isOpaque = false
     super.viewDidLoad()
-    setup(for: .glazingKeyField)   // ← old
+    clearHostBackgrounds()
 }
-```
 
-The docs now recommend:
-
-```swift
-// Recommended (current API)
 override func viewWillSetupKeyboardKit() {
-    setupKeyboardKit(for: .glazingKeyField) { result in
-        // Pro features available here after licence registration
-    }
+    setupKeyboardKit(for: .glazingKeyField) { _ in }
 }
 ```
 
-**Why it still works:** `setup(for:)` registers the licence file and configures KeyboardKit before `viewWillSetupKeyboardView()` fires, so the custom view gets a valid KeyboardKit environment. The `setupKeyboardKit(for:completion:)` form is preferred because the completion block is the safe place to override services — but since we don't override any services, the old form is functionally equivalent for our use case.
+### ✅ `textWillChange` / `textDidChange` — stubs removed
 
-**To migrate:** Replace `setup(for:)` in `viewDidLoad` with `viewWillSetupKeyboardKit()` + `setupKeyboardKit(for:completion:)`. Keep `viewWillSetupKeyboardView()` as-is.
-
-### ⚠️ `textWillChange` / `textDidChange` suppressed
-
-```swift
-override func textWillChange(_ textInput: UITextInput?) {}
-override func textDidChange(_ textInput: UITextInput?) {}
-```
-
-These are overridden to do nothing. The default KeyboardKit implementations update `KeyboardContext` (cursor position, text content, etc.) and trigger autocomplete. Since this keyboard inserts pre-formatted records rather than character-by-character text, the defaults aren't needed — but suppressing them means `KeyboardContext.textDocumentProxy` state won't update if you later add autocomplete or cursor-position-aware features.
+The empty overrides that suppressed KeyboardKit's text tracking have been removed. The default implementations now run, keeping `KeyboardContext` up to date with cursor position and text content. This is a prerequisite for autocomplete if you add it later.
 
 ### ℹ️ No `appGroupId`
 
@@ -202,16 +188,16 @@ These are overridden to do nothing. The default KeyboardKit implementations upda
 
 To enable: create an App Group in both target's Capabilities (`group.com.glazingkey.field`), add `appGroupId: "group.com.glazingkey.field"` to `KeyboardApp.glazingKeyField`, and update `PresetsStore` to use `UserDefaults(suiteName: "group.com.glazingkey.field")`.
 
-### ℹ️ `needsInputModeSwitchKey` passed manually
+### ✅ `needsInputModeSwitchKey` — environment object
 
-The globe key visibility is passed as a constructor argument into `KeyboardRootView`. The KeyboardKit-idiomatic approach is to read it from the environment:
+`needsInputModeSwitch` is no longer passed as a constructor argument through `KeyboardRootView` → `NumpadView` → `KeypadButtonView`. Both `NumpadView` and `KeypadButtonView` now read it directly from the environment:
 
 ```swift
 @EnvironmentObject private var keyboardContext: KeyboardContext
 // keyboardContext.needsInputModeSwitchKey
 ```
 
-This works fine as-is, but switching to `@EnvironmentObject` would remove one constructor parameter and let any nested view read it without prop-drilling.
+KeyboardKit injects `KeyboardContext` into the SwiftUI environment automatically via `setupKeyboardView`, so it's available anywhere in the view tree.
 
 ---
 

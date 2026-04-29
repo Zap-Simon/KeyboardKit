@@ -187,7 +187,6 @@ struct KeyboardRootView: View {
     @ObservedObject var diagnostics: KeyboardDiagnostics
     @ObservedObject var renderState: KeyboardRenderState
     let keyboardHeight: CGFloat
-    let needsInputModeSwitch: Bool
     let onInsert: (String) -> Void
     let onSwitchKeyboard: () -> Void
     let onDelete: () -> Void
@@ -200,7 +199,6 @@ struct KeyboardRootView: View {
         diagnostics: KeyboardDiagnostics,
         renderState: KeyboardRenderState,
         keyboardHeight: CGFloat,
-        needsInputModeSwitch: Bool,
         onInsert: @escaping (String) -> Void,
         onSwitchKeyboard: @escaping () -> Void,
         onDelete: @escaping () -> Void
@@ -209,7 +207,6 @@ struct KeyboardRootView: View {
         self.diagnostics = diagnostics
         self.renderState = renderState
         self.keyboardHeight = keyboardHeight
-        self.needsInputModeSwitch = needsInputModeSwitch
         self.onInsert = onInsert
         self.onSwitchKeyboard = onSwitchKeyboard
         self.onDelete = onDelete
@@ -273,7 +270,6 @@ struct KeyboardRootView: View {
 
             NumpadView(
                 state: state,
-                needsInputModeSwitch: needsInputModeSwitch,
                 onInsert: onInsert,
                 onSwitchKeyboard: onSwitchKeyboard,
                 onSettings: { state.showSettings = true },
@@ -868,7 +864,7 @@ struct WeightSummaryView: View {
 
 struct NumpadView: View {
     @ObservedObject var state: KeyboardState
-    let needsInputModeSwitch: Bool
+    @EnvironmentObject private var keyboardContext: KeyboardContext
     let onInsert: (String) -> Void
     let onSwitchKeyboard: () -> Void
     let onSettings: () -> Void
@@ -899,7 +895,6 @@ struct NumpadView: View {
                             let key = rows[rowIndex][columnIndex]
                             KeypadButtonView(
                                 key: key,
-                                needsInputModeSwitch: needsInputModeSwitch,
                                 onTap: { handleKey(key) },
                                 onLongPress: key == .insert ? handleLongPressInsert : nil,
                                 onSettings: onSettings
@@ -970,7 +965,7 @@ enum KeypadKey: Equatable {
 
 struct KeypadButtonView: View {
     let key: KeypadKey
-    let needsInputModeSwitch: Bool
+    @EnvironmentObject private var keyboardContext: KeyboardContext
     let onTap: () -> Void
     let onLongPress: (() -> Void)?
     let onSettings: () -> Void
@@ -1007,7 +1002,7 @@ struct KeypadButtonView: View {
         if key == .spacer {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if isGlobe && !needsInputModeSwitch {
+        } else if isGlobe && !keyboardContext.needsInputModeSwitchKey {
             Button(action: onSettings) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 16))

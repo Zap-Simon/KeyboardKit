@@ -10,14 +10,15 @@ class KeyboardViewController: KeyboardInputViewController {
     private let keyboardHeight: CGFloat = 408
 
     override func viewDidLoad() {
-        super.viewDidLoad()
-
+        renderState.isContentVisible = false
         view.backgroundColor = .clear
         view.isOpaque = false
-        renderState.isContentVisible = false
-        setup(for: .glazingKeyField)
-        // Clear after setup — setup(for:) may replace inputView
+        super.viewDidLoad()
         clearHostBackgrounds()
+    }
+
+    override func viewWillSetupKeyboardKit() {
+        setupKeyboardKit(for: .glazingKeyField) { _ in }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -64,7 +65,6 @@ class KeyboardViewController: KeyboardInputViewController {
                 diagnostics: KeyboardDiagnostics(),
                 renderState: KeyboardRenderState(),
                 keyboardHeight: 408,
-                needsInputModeSwitch: controller.needsInputModeSwitchKey,
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },
                 onDelete: { controller.textDocumentProxy.deleteBackward() }
@@ -74,7 +74,6 @@ class KeyboardViewController: KeyboardInputViewController {
                 diagnostics: self.diagnostics,
                 renderState: self.renderState,
                 keyboardHeight: self.keyboardHeight,
-                needsInputModeSwitch: controller.needsInputModeSwitchKey,
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },
                 onDelete: { controller.textDocumentProxy.deleteBackward() }
@@ -82,6 +81,4 @@ class KeyboardViewController: KeyboardInputViewController {
         }
     }
 
-    override func textWillChange(_ textInput: UITextInput?) {}
-    override func textDidChange(_ textInput: UITextInput?) {}
 }
