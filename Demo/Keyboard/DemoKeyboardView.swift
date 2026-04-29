@@ -3,7 +3,9 @@ import SwiftUI
 private enum KeyboardLayoutMetrics {
     static let modeSelectorHeight: CGFloat = 34
     static let selectorHeight: CGFloat = 60
-    static let measurementHeight: CGFloat = 116
+    // 132pt: cards have outer .padding(.vertical, 4/6) after .frame(height:52),
+    // so their layout height is 60pt (cut) / 64pt (weight). Max mode = 64+6+58=128, +4pt buffer.
+    static let measurementHeight: CGFloat = 132
     static let sectionSpacing: CGFloat = 4
     static let shellCornerRadius: CGFloat = 18
 }
@@ -268,7 +270,6 @@ struct KeyboardRootView: View {
 
             MeasurementDisplayView(state: state)
                 .frame(height: KeyboardLayoutMetrics.measurementHeight, alignment: .top)
-                .clipped()
 
             NumpadView(
                 state: state,
@@ -293,14 +294,24 @@ private struct KeyboardMaterialShellView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        // Match iOS native keyboard background exactly
-        (colorScheme == .dark
-            ? Color(red: 0.118, green: 0.118, blue: 0.125)
-            : Color(red: 0.820, green: 0.835, blue: 0.859))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color.black.opacity(colorScheme == .dark ? 0.60 : 0.16))
-                .frame(height: 0.5)
+        shellBackground
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.black.opacity(colorScheme == .dark ? 0.60 : 0.16))
+                    .frame(height: 0.5)
+            }
+    }
+
+    @ViewBuilder
+    private var shellBackground: some View {
+        if #available(iOS 26, *) {
+            // iOS 26+: use material so the keyboard blends with the Liquid Glass chrome
+            Rectangle().fill(.ultraThinMaterial)
+        } else {
+            // iOS 17-18: exact solid grey match for system keyboard
+            colorScheme == .dark
+                ? Color(red: 0.118, green: 0.118, blue: 0.125)
+                : Color(red: 0.820, green: 0.835, blue: 0.859)
         }
     }
 }
@@ -401,34 +412,48 @@ private struct KeyboardDiagnosticsOverlayView: View {
 
 struct ModeSelectorView: View {
     @ObservedObject var state: KeyboardState
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(KeyboardMode.allCases) { mode in
-                Button(action: { state.setMode(mode) }) {
-                    Text(mode.title)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .background(
-                            KeyboardPanelBackground(
-                                cornerRadius: 10,
-                                lightOverlayOpacity: state.mode == mode ? 0.16 : 0.08,
-                                darkOverlayOpacity: state.mode == mode ? 0.22 : 0.18
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(state.mode == mode ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1.2)
-                        )
-                        .foregroundColor(.primary)
-                        .cornerRadius(10)
+        ZStack {
+            // Track
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(colorScheme == .dark
+                    ? Color(red: 0.118, green: 0.118, blue: 0.125)
+                    : Color(red: 0.675, green: 0.698, blue: 0.741).opacity(0.55))
+
+            // Animated pill
+            GeometryReader { proxy in
+                let count = CGFloat(KeyboardMode.allCases.count)
+                let pillW = proxy.size.width / count
+                let idx = CGFloat(KeyboardMode.allCases.firstIndex(of: state.mode) ?? 0)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(colorScheme == .dark
+                        ? Color(red: 0.216, green: 0.216, blue: 0.235)
+                        : Color.white)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.18), radius: 2, x: 0, y: 1)
+                    .padding(2)
+                    .frame(width: pillW)
+                    .offset(x: idx * pillW)
+                    .animation(.spring(response: 0.22, dampingFraction: 0.85), value: state.mode)
+            }
+        }
+        .frame(height: 28)
+        .overlay {
+            HStack(spacing: 0) {
+                ForEach(KeyboardMode.allCases) { mode in
+                    Button(action: { state.setMode(mode) }) {
+                        Text(mode.title)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .foregroundColor(state.mode == mode ? .primary : .secondary)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 4)
+        .padding(.top, 6)
         .frame(height: KeyboardLayoutMetrics.modeSelectorHeight)
     }
 }
@@ -440,10 +465,9 @@ struct GlassTypeSelectorView: View {
     var body: some View {
         VStack(spacing: 4) {
             HStack {
-                Text("Glass Type")
+                Text("Glass Formula")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.secondary)
-                    .textCase(.uppercase)
                 Spacer()
                 if let preset = state.selectedPreset {
                     Text(preset.adjustmentLabel + "mm")
@@ -514,7 +538,6 @@ struct WeightSpecSelectorView: View {
                 Text("Glass Build")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.secondary)
-                    .textCase(.uppercase)
                 Spacer()
                 if let spec = state.selectedWeightSpec {
                     Text("\(GlassWeightCalculator.formattedDecimal(spec.arealDensityKgPerM2, scale: 1))kg/m2")
@@ -648,12 +671,15 @@ struct MeasurementCardView: View {
     let heightField: MeasurementField
     let onTap: (MeasurementField) -> Void
 
+    private var isCardActive: Bool {
+        activeField == widthField || activeField == heightField
+    }
+
     var body: some View {
         VStack(spacing: 4) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+                .foregroundColor(isCardActive ? .accentColor : .secondary)
 
             HStack(spacing: 4) {
                 CompactFieldCellView(
@@ -663,10 +689,9 @@ struct MeasurementCardView: View {
                     onTap: { onTap(heightField) }
                 )
 
-                Text("·")
-                    .font(.system(size: 18, weight: .bold))
+                Text("×")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.secondary)
-                    .padding(.top, 8)
 
                 CompactFieldCellView(
                     title: "W",
@@ -681,6 +706,10 @@ struct MeasurementCardView: View {
         .padding(.horizontal, 5)
         .padding(.vertical, 4)
         .background(KeyboardPanelBackground(cornerRadius: 9, lightOverlayOpacity: 0.07, darkOverlayOpacity: 0.16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isCardActive ? Color.accentColor.opacity(0.50) : Color.clear, lineWidth: 1.5)
+        )
         .cornerRadius(9)
     }
 }
@@ -747,11 +776,10 @@ struct CutSummaryView: View {
                 Text("Glazing Size")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.secondary)
-                    .textCase(.uppercase)
 
                 if let result {
                     Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × "))
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(.green)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -769,7 +797,6 @@ struct CutSummaryView: View {
                     Text("Adjustment")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
-                        .textCase(.uppercase)
                     Text(result.adjustment > 0 ? "+\(result.adjustment)mm" : "\(result.adjustment)mm")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.accentColor)
@@ -780,7 +807,13 @@ struct CutSummaryView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .frame(height: 58)
-        .background(KeyboardPanelBackground(cornerRadius: 12))
+        .background {
+            KeyboardPanelBackground(cornerRadius: 12)
+            if result != nil {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.green.opacity(0.09))
+            }
+        }
         .cornerRadius(12)
     }
 }
@@ -794,11 +827,10 @@ struct WeightSummaryView: View {
                 Text("Estimated Weight")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.secondary)
-                    .textCase(.uppercase)
 
                 if let result {
                     Text("\(result.weightLabel) kg")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -816,7 +848,6 @@ struct WeightSummaryView: View {
                     Text("Area")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
-                        .textCase(.uppercase)
                     Text("\(result.areaLabel)m2")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
@@ -853,7 +884,7 @@ struct NumpadView: View {
     private let rows: [[KeypadKey]] = [
         [.digit("1"), .digit("2"), .digit("3"), .backspace],
         [.digit("4"), .digit("5"), .digit("6"), .hostDelete],
-        [.digit("7"), .digit("8"), .digit("9"), .clear],
+        [.digit("7"), .digit("8"), .digit("9"), .spacer],
         [.globe, .digit("0"), .lineBreak, .insert]
     ]
 
@@ -897,8 +928,8 @@ struct NumpadView: View {
             onDelete()
         case .backspace:
             state.deleteFromActive()
-        case .clear:
-            state.clearActive()
+        case .spacer:
+            break
         case .insert:
             insertRecord(full: true)
         case .globe:
@@ -932,7 +963,7 @@ enum KeypadKey: Equatable {
     case lineBreak
     case hostDelete
     case backspace
-    case clear
+    case spacer
     case insert
     case globe
     case settings
@@ -949,9 +980,9 @@ struct KeypadButtonView: View {
         switch key {
         case .digit(let digit): return digit
         case .lineBreak: return "↵"
-        case .hostDelete: return "⌫"
-        case .backspace: return "⌫"
-        case .clear: return "C"
+        case .hostDelete: return ""
+        case .backspace: return ""
+        case .spacer: return ""
         case .insert: return "✓"
         case .globe: return "🌐"
         case .settings: return "⚙️"
@@ -974,6 +1005,12 @@ struct KeypadButtonView: View {
     }
 
     var body: some View {
+        // Spacer: invisible non-interactive placeholder
+        if key == .spacer {
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            return
+        }
         Group {
             if isGlobe && !needsInputModeSwitch {
                 Button(action: onSettings) {
@@ -986,8 +1023,7 @@ struct KeypadButtonView: View {
                 }
             } else {
                 Button(action: onTap) {
-                    Text(label)
-                        .font(.system(size: isInsert ? 18 : 17, weight: isInsert ? .bold : .regular))
+                    keyButtonLabel
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: isSpecial, isAccent: isInsert))
                         .foregroundColor(isInsert ? .white : .primary)
@@ -1003,6 +1039,23 @@ struct KeypadButtonView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var keyButtonLabel: some View {
+        switch key {
+        case .backspace:
+            // Deletes from the active measurement field
+            Image(systemName: "delete.backward")
+                .font(.system(size: 17))
+        case .hostDelete:
+            // Sends delete to the host document (filled = document-level action)
+            Image(systemName: "delete.backward.fill")
+                .font(.system(size: 17))
+        default:
+            Text(label)
+                .font(.system(size: isInsert ? 18 : 17, weight: isInsert ? .bold : .regular))
+        }
     }
 }
 
