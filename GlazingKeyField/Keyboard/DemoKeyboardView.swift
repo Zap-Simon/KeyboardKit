@@ -1,4 +1,5 @@
 import SwiftUI
+import KeyboardKit
 
 private enum KeyboardLayoutMetrics {
     static let modeSelectorHeight: CGFloat = 28
@@ -1205,7 +1206,6 @@ struct WeightSummaryView: View {
 struct NumpadView: View {
     @ObservedObject var state: KeyboardState
     @ObservedObject var clipboardStore: ClipboardHistoryStore
-    @EnvironmentObject private var keyboardContext: KeyboardContext
     let onInsert: (String) -> Void
     let onSwitchKeyboard: () -> Void
     let onSettings: () -> Void

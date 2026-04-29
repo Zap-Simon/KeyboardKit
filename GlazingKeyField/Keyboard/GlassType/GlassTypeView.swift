@@ -102,7 +102,7 @@ struct GlassTypeTabView: View {
                     .foregroundColor(.secondary)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
-                        ForEach([6, 8, 10, 12, 14, 16], id: \.self) { mm in
+                        ForEach([6, 8, 10, 12, 14, 16] as [Int], id: \.self) { mm in
                             let sel = glassState.spacerBar?.thicknessMm == mm
                             Button {
                                 glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {

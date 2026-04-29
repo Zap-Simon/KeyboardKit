@@ -31,10 +31,12 @@ struct HomeScreen: View {
                         .cardEntrance(delay: 0.25, appeared: appeared)
                     formulaInfoCard
                         .cardEntrance(delay: 0.31, appeared: appeared)
+                    wganzCard
+                        .cardEntrance(delay: 0.36, appeared: appeared)
                     workflowCard
-                        .cardEntrance(delay: 0.37, appeared: appeared)
+                        .cardEntrance(delay: 0.42, appeared: appeared)
                     testAreaCard
-                        .cardEntrance(delay: 0.44, appeared: appeared)
+                        .cardEntrance(delay: 0.49, appeared: appeared)
                 }
                 .padding(16)
             }
@@ -431,6 +433,52 @@ private extension HomeScreen {
             MaterialScreenCardBackground(cornerRadius: 20, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.14)
         }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    var wganzCard: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if let url = URL(string: "https://www.wganz.org.nz/safety-glazing-standards/") {
+                UIApplication.shared.open(url)
+            }
+        } label: {
+            HStack(spacing: 14) {
+                // WGANZ branded logo square
+                VStack(spacing: 1) {
+                    Text("WG")
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundStyle(.white)
+                    Text("ANZ")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(.white.opacity(0.80))
+                }
+                .frame(width: 54, height: 54)
+                .background(Color(red: 0.08, green: 0.20, blue: 0.44))
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Safety Glazing Calculator")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(ScreenTheme.ink)
+                    Text("NZS 4223.3:2016 · wganz.org.nz")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(ScreenTheme.inkSoft)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right.square.fill")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color(red: 0.08, green: 0.20, blue: 0.44).opacity(0.55))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                MaterialScreenCardBackground(cornerRadius: 18, tint: ScreenTheme.cardTint(for: colorScheme), shadowOpacity: 0.12)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     var testAreaCard: some View {
