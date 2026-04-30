@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import KeyboardKit
 
@@ -81,9 +82,63 @@ final class KeyboardState: ObservableObject {
     private var advanceWorkItem: DispatchWorkItem?
     private static let advanceDebounce: TimeInterval = 0.75
 
+    // Session persistence
+    private var saveCancellable: AnyCancellable?
+    private enum PersistenceKeys {
+        static let sightWidth   = "gkf.sightWidth"
+        static let sightHeight  = "gkf.sightHeight"
+        static let tightWidth   = "gkf.tightWidth"
+        static let tightHeight  = "gkf.tightHeight"
+        static let weightWidth  = "gkf.weightWidth"
+        static let weightHeight = "gkf.weightHeight"
+        static let mode         = "gkf.mode"
+        static let presetData   = "gkf.presetData"
+        static let weightSpecId = "gkf.weightSpecId"
+    }
+
     init(initialPreset: GlassPreset? = nil, initialWeightSpec: GlassWeightSpec? = nil) {
-        selectedPreset = initialPreset ?? GlassPreset.defaults.first
-        selectedWeightSpec = initialWeightSpec ?? GlassWeightSpec.defaults.first
+        let ud = UserDefaults.standard
+        sightWidth   = ud.string(forKey: PersistenceKeys.sightWidth)   ?? ""
+        sightHeight  = ud.string(forKey: PersistenceKeys.sightHeight)  ?? ""
+        tightWidth   = ud.string(forKey: PersistenceKeys.tightWidth)   ?? ""
+        tightHeight  = ud.string(forKey: PersistenceKeys.tightHeight)  ?? ""
+        weightWidth  = ud.string(forKey: PersistenceKeys.weightWidth)  ?? ""
+        weightHeight = ud.string(forKey: PersistenceKeys.weightHeight) ?? ""
+        if let raw = ud.string(forKey: PersistenceKeys.mode),
+           let restored = KeyboardMode(rawValue: raw) {
+            mode = restored
+        }
+        if let data = ud.data(forKey: PersistenceKeys.presetData),
+           let preset = try? JSONDecoder().decode(GlassPreset.self, from: data) {
+            selectedPreset = preset
+        } else {
+            selectedPreset = initialPreset ?? GlassPreset.defaults.first
+        }
+        if let specId = ud.string(forKey: PersistenceKeys.weightSpecId),
+           let spec = GlassWeightSpec.defaults.first(where: { $0.id == specId }) {
+            selectedWeightSpec = spec
+        } else {
+            selectedWeightSpec = initialWeightSpec ?? GlassWeightSpec.defaults.first
+        }
+        // Persist after any change, debounced so we don't thrash storage on every keystroke
+        saveCancellable = objectWillChange
+            .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.saveSession() }
+    }
+
+    private func saveSession() {
+        let ud = UserDefaults.standard
+        ud.set(sightWidth,        forKey: PersistenceKeys.sightWidth)
+        ud.set(sightHeight,       forKey: PersistenceKeys.sightHeight)
+        ud.set(tightWidth,        forKey: PersistenceKeys.tightWidth)
+        ud.set(tightHeight,       forKey: PersistenceKeys.tightHeight)
+        ud.set(weightWidth,       forKey: PersistenceKeys.weightWidth)
+        ud.set(weightHeight,      forKey: PersistenceKeys.weightHeight)
+        ud.set(mode.rawValue,     forKey: PersistenceKeys.mode)
+        if let data = try? JSONEncoder().encode(selectedPreset) {
+            ud.set(data, forKey: PersistenceKeys.presetData)
+        }
+        ud.set(selectedWeightSpec?.id, forKey: PersistenceKeys.weightSpecId)
     }
 
     func value(for field: MeasurementField) -> String {
@@ -238,6 +293,8 @@ final class KeyboardState: ObservableObject {
             weightHeight = ""
             activeField = .weightHeight
         }
+        // Save immediately so a phone lock right after insert doesn't restore stale measurements
+        saveSession()
     }
 
     var result: GlazingResult? {
@@ -390,15 +447,6 @@ struct KeyboardRootView: View {
                         )
                 }
                 .buttonStyle(.plain)
-
-                // Dismiss
-                Button(action: onDismiss) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 26, height: 26)
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 8)
             .padding(.top, 8)
@@ -424,6 +472,7 @@ struct KeyboardRootView: View {
                     }
                 }
                 .padding(.horizontal, 0)
+                .padding(.top, 3)
                 .padding(.bottom, 6)
             }
 
@@ -452,11 +501,6 @@ private struct KeyboardMaterialShellView: View {
 
     var body: some View {
         shellBackground
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color.black.opacity(colorScheme == .dark ? 0.60 : 0.16))
-                    .frame(height: 0.5)
-            }
     }
 
     @ViewBuilder

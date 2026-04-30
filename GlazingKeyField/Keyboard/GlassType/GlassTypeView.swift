@@ -72,43 +72,66 @@ struct GlassTypeTabView: View {
                 label: "Glass Type",
                 value: glassState.outerPane?.name,
                 placeholder: "Search…",
-                isActive: glassState.outerPane == nil
-            ) {
-                glassState.outerPane = nil
-                glassState.clearSearch()
-            }
+                isActive: glassState.activeSlot == .outer,
+                onClear: {
+                    glassState.outerPane = nil
+                    glassState.activeSlot = .outer
+                    glassState.clearSearch()
+                },
+                onSelect: { glassState.activeSlot = .outer }
+            )
         }
         .padding(.horizontal, 14)
     }
 
     private var dguPane: some View {
-        HStack(spacing: 6) {
-            glassSlot(
-                label: "Outer",
-                value: glassState.outerPane?.name,
-                placeholder: "Search…",
-                isActive: glassState.outerPane == nil
-            ) {
-                glassState.outerPane = nil
-                glassState.clearSearch()
+        VStack(spacing: 6) {
+            // Row 1: Outer + Inner slots side by side
+            HStack(spacing: 8) {
+                glassSlot(
+                    label: "Outer",
+                    value: glassState.outerPane?.name,
+                    placeholder: "Search…",
+                    isActive: glassState.activeSlot == .outer,
+                    onClear: {
+                        glassState.outerPane = nil
+                        glassState.activeSlot = .outer
+                        glassState.clearSearch()
+                    },
+                    onSelect: { glassState.activeSlot = .outer }
+                )
+                glassSlot(
+                    label: "Inner",
+                    value: glassState.innerPane?.name,
+                    placeholder: glassState.outerPane.map { "Same: \($0.name)" } ?? "Search…",
+                    isActive: glassState.activeSlot == .inner,
+                    onClear: {
+                        glassState.innerPane = nil
+                        glassState.activeSlot = .inner
+                        glassState.clearSearch()
+                    },
+                    onSelect: { glassState.activeSlot = .inner }
+                )
             }
 
-            // Spacer bar chip column
-            VStack(spacing: 2) {
-                Text("Spacer")
+            // Row 2: Spacer bar (thickness + colour)
+            VStack(spacing: 3) {
+                Text("Spacer Bar")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                // Thickness chips
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         ForEach([6, 8, 10, 12, 14, 16] as [Int], id: \.self) { mm in
                             let sel = glassState.spacerBar?.thicknessMm == mm
-                            Button {                                glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {
+                            Button {
+                                glassState.spacerBar = GlassTypeCatalogue.spacerBars.first {
                                     $0.thicknessMm == mm &&
                                     ($0.colour == (glassState.spacerBar?.colour ?? .black))
                                 } ?? GlassTypeCatalogue.spacerBars.first { $0.thicknessMm == mm }
                             } label: {
-                                let label = String(mm) + "mm"
-                                Text(label)
+                                Text("\(mm)mm")
                                     .font(.system(size: 10, weight: .bold))
                                     .padding(.horizontal, 6)
                                     .frame(height: 22)
@@ -123,7 +146,7 @@ struct GlassTypeTabView: View {
                     }
                     .padding(.horizontal, 2)
                 }
-                // Colour chips — scrollable so "Black Thermal" doesn't overflow
+                // Colour chips
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         ForEach(SpacerColour.allCases) { col in
@@ -151,17 +174,6 @@ struct GlassTypeTabView: View {
                     .padding(.horizontal, 2)
                 }
             }
-            .frame(width: 90)
-
-            glassSlot(
-                label: "Inner",
-                value: glassState.innerPane?.name ?? glassState.outerPane.map { "Same: \($0.name)" },
-                placeholder: "Same as outer",
-                isActive: glassState.outerPane != nil && glassState.innerPane == nil
-            ) {
-                glassState.innerPane = nil
-                glassState.clearSearch()
-            }
         }
         .padding(.horizontal, 8)
     }
@@ -172,7 +184,8 @@ struct GlassTypeTabView: View {
         value: String?,
         placeholder: String,
         isActive: Bool,
-        onClear: @escaping () -> Void
+        onClear: @escaping () -> Void,
+        onSelect: @escaping () -> Void = {}
     ) -> some View {
         VStack(alignment: .center, spacing: 2) {
             Text(label)
@@ -211,6 +224,7 @@ struct GlassTypeTabView: View {
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .onTapGesture { onSelect() }
         }
         .frame(maxWidth: .infinity)
     }

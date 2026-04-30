@@ -18,6 +18,9 @@ final class GlassTypeState: ObservableObject {
     @Published var outerPane: GlassTypeDef? = nil
     @Published var spacerBar: SpacerBarDef? = nil
     @Published var innerPane: GlassTypeDef? = nil     // nil = same as outer
+    @Published var activeSlot: GlassSlot = .outer
+
+    enum GlassSlot { case outer, inner }
 
     // ── Resolved build (nil until outer is set) ────────────────────────────
     var confirmedBuild: GlassBuild? {
@@ -63,14 +66,18 @@ final class GlassTypeState: ObservableObject {
     }
 
     func selectSuggestion(_ type: GlassTypeDef) {
-        if outerPane == nil {
+        switch activeSlot {
+        case .outer:
             outerPane = type
-            if buildMode == .dgu, spacerBar == nil {
-                spacerBar = GlassTypeCatalogue.spacerBars.first(where: {
-                    $0.thicknessMm == 10 && $0.colour == .black
-                })
+            if buildMode == .dgu {
+                if spacerBar == nil {
+                    spacerBar = GlassTypeCatalogue.spacerBars.first(where: {
+                        $0.thicknessMm == 10 && $0.colour == .black
+                    })
+                }
+                activeSlot = .inner
             }
-        } else if buildMode == .dgu, innerPane == nil {
+        case .inner:
             innerPane = type
         }
         clearSearch()
@@ -82,6 +89,7 @@ final class GlassTypeState: ObservableObject {
         outerPane = nil
         spacerBar = nil
         innerPane = nil
+        activeSlot = .outer
     }
 
     func setBuildMode(_ mode: BuildMode) {
@@ -90,6 +98,7 @@ final class GlassTypeState: ObservableObject {
             spacerBar = nil
             innerPane = nil
         }
+        activeSlot = .outer
     }
 
     // ── Predictive suggestions ─────────────────────────────────────────────
