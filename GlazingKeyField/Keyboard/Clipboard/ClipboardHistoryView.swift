@@ -10,8 +10,6 @@ struct ClipboardPanelView: View {
     let onInsert: (String) -> Void
     let onClose: () -> Void
 
-    @State private var showClearConfirm = false
-
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -26,10 +24,6 @@ struct ClipboardPanelView: View {
         .padding(.horizontal, 10)
         .padding(.top, 8)
         .padding(.bottom, 8)
-        .confirmationDialog("Clear all history?", isPresented: $showClearConfirm, titleVisibility: .visible) {
-            Button("Clear All", role: .destructive) { store.clear() }
-            Button("Cancel", role: .cancel) {}
-        }
     }
 
     // MARK: Header
@@ -44,7 +38,7 @@ struct ClipboardPanelView: View {
             Spacer()
             if !store.entries.isEmpty {
                 Button {
-                    showClearConfirm = true
+                    store.clear()
                 } label: {
                     Text("Clear")
                         .font(.system(size: 12, weight: .semibold))

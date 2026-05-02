@@ -15,10 +15,6 @@ enum KeyboardPreferences {
     static let debugModeKey = "glazing_keyboard_debug_mode_v1"
 }
 
-final class KeyboardRenderState: ObservableObject {
-    @Published var isContentVisible = true
-}
-
 final class KeyboardDiagnostics: ObservableObject {
     @Published private(set) var entries: [String] = []
     @Published private(set) var rootSizeDescription: String = "--"
@@ -70,7 +66,6 @@ final class KeyboardState: ObservableObject {
     @Published var activeField: MeasurementField = .sightHeight
     @Published var showSettings = false
     @Published var showClipboard = false
-    @Published var showCredentials = false
     @Published var selectedPreset: GlassPreset?
     @Published var selectedWeightSpec: GlassWeightSpec?
     let glassTypeState = GlassTypeState()
@@ -332,7 +327,6 @@ final class KeyboardState: ObservableObject {
 struct KeyboardRootView: View {
     @ObservedObject var presetsStore: PresetsStore
     @ObservedObject var diagnostics: KeyboardDiagnostics
-    @ObservedObject var renderState: KeyboardRenderState
     let keyboardHeight: CGFloat
     let onInsert: (String) -> Void
     let onSwitchKeyboard: () -> Void
@@ -341,12 +335,10 @@ struct KeyboardRootView: View {
 
     @StateObject private var state = KeyboardState()
     @StateObject private var clipboardStore = ClipboardHistoryStore()
-    @StateObject private var credentialStore = CredentialStore()
 
     init(
         presetsStore: PresetsStore,
         diagnostics: KeyboardDiagnostics,
-        renderState: KeyboardRenderState,
         keyboardHeight: CGFloat,
         onInsert: @escaping (String) -> Void,
         onSwitchKeyboard: @escaping () -> Void,
@@ -355,7 +347,6 @@ struct KeyboardRootView: View {
     ) {
         self.presetsStore = presetsStore
         self.diagnostics = diagnostics
-        self.renderState = renderState
         self.keyboardHeight = keyboardHeight
         self.onInsert = onInsert
         self.onSwitchKeyboard = onSwitchKeyboard
@@ -385,29 +376,20 @@ struct KeyboardRootView: View {
         ZStack(alignment: .top) {
             KeyboardNeutralShellView()
 
-            if renderState.isContentVisible {
-                if state.showSettings {
-                    SettingsPanelView(presetsStore: presetsStore, state: state)
-                        .frame(maxWidth: .infinity, alignment: .top)
-                } else if state.showClipboard {
-                    ClipboardPanelView(
-                        store: clipboardStore,
-                        onInsert: { text in
-                            onInsert(text)
-                        },
-                        onClose: { state.showClipboard = false }
-                    )
+            if state.showSettings {
+                SettingsPanelView(presetsStore: presetsStore, state: state)
                     .frame(maxWidth: .infinity, alignment: .top)
-                } else if state.showCredentials {
-                    CredentialsPanelView(
-                        store: credentialStore,
-                        onInsert: { text in onInsert(text) },
-                        onClose: { state.showCredentials = false }
-                    )
-                    .frame(maxWidth: .infinity, alignment: .top)
-                } else {
-                    keyboardContent
-                }
+            } else if state.showClipboard {
+                ClipboardPanelView(
+                    store: clipboardStore,
+                    onInsert: { text in
+                        onInsert(text)
+                    },
+                    onClose: { state.showClipboard = false }
+                )
+                .frame(maxWidth: .infinity, alignment: .top)
+            } else {
+                keyboardContent
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -419,20 +401,6 @@ struct KeyboardRootView: View {
             // ── Mode tabs + utility icons (single row) ───────────────────────
             HStack(spacing: 6) {
                 ModeSelectorView(state: state)
-
-                // Credentials
-                Button { state.showCredentials = true } label: {
-                    Image(systemName: "key.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(credentialStore.credentials.isEmpty ? .secondary : .accentColor)
-                        .frame(width: 26, height: 26)
-                        .background(
-                            Circle().fill(credentialStore.credentials.isEmpty
-                                ? Color.clear
-                                : Color.accentColor.opacity(0.12))
-                        )
-                }
-                .buttonStyle(.plain)
 
                 // History
                 Button { state.showClipboard = true } label: {
@@ -676,68 +644,45 @@ struct GlassTypeSelectorView: View {
     @ObservedObject var state: KeyboardState
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text("Glass Formula")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                Spacer()
-                if let preset = state.selectedPreset {
-                    Text("\(preset.source.title) \(preset.adjustmentLabel)mm")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.accentColor)
-                }
-            }
-            .padding(.horizontal, 16)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(presetsStore.orderedPresets()) { preset in
-                        let isSelected = state.selectedPreset?.id == preset.id
-                        let isFavorite = presetsStore.isFavorite(preset)
-
-                        Button(action: {
-                            state.selectedPreset = preset
-                            presetsStore.markRecent(preset)
-                        }) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Text(preset.name)
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .lineLimit(1)
-                                    if isFavorite {
-                                        Image(systemName: "star.fill")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(isSelected ? .white : .yellow)
-                                    }
-                                }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(presetsStore.orderedPresets()) { preset in
+                    let isSelected = state.selectedPreset?.id == preset.id
+                    Button(action: {
+                        state.selectedPreset = preset
+                        presetsStore.markRecent(preset)
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(preset.name)
+                                .font(.system(size: 12, weight: .semibold))
+                                .lineLimit(1)
+                            if isSelected {
                                 Text("\(preset.source.title) \(preset.adjustmentLabel)mm")
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
+                                    .opacity(0.85)
                             }
-                            .frame(width: 118, alignment: .leading)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
-                            .background {
-                                if isSelected {
-                                    KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
-                                } else {
-                                    KeyboardCardBackground(cornerRadius: 10)
-                                }
-                            }
-                            .foregroundColor(isSelected ? .white : .primary)
-                            .cornerRadius(10)
                         }
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.5).onEnded { _ in
-                                presetsStore.toggleFavorite(preset)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                        .background {
+                            if isSelected {
+                                KeyboardKeyBackground(cornerRadius: 14, isSpecial: true, isAccent: true)
+                            } else {
+                                KeyboardCardBackground(cornerRadius: 14)
                             }
-                        )
-                        .buttonStyle(.plain)
+                        }
+                        .foregroundColor(isSelected ? .white : .primary)
+                        .cornerRadius(14)
                     }
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                            presetsStore.toggleFavorite(preset)
+                        }
+                    )
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 16)
             }
+            .padding(.horizontal, 14)
         }
     }
 }
@@ -746,73 +691,54 @@ struct WeightSpecSelectorView: View {
     @ObservedObject var state: KeyboardState
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text("Glass Build")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
+        if state.glassTypeState.confirmedBuild != nil {
+            HStack(spacing: 8) {
+                Text(state.selectedWeightSpec?.name ?? "")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(KeyboardKeyBackground(cornerRadius: 14, isSpecial: true, isAccent: true))
+                    .cornerRadius(14)
                 Spacer()
-                if let build = state.glassTypeState.confirmedBuild {
-                    GlassTypeSummaryBadge(build: build)
-                } else if let spec = state.selectedWeightSpec {
-                    Text("\(GlassWeightCalculator.formattedDecimal(spec.arealDensityKgPerM2, scale: 1))kg/m2")
-                        .font(.system(size: 11, weight: .bold))
+                Button(action: {
+                    state.glassTypeState.reset()
+                    state.selectedWeightSpec = GlassWeightSpec.defaults.first
+                }) {
+                    Text("Change")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-
-            if state.glassTypeState.confirmedBuild != nil {
-                // Build is from Type tab — show a single chip reflecting it
-                HStack(spacing: 8) {
-                    Text(state.selectedWeightSpec?.name ?? "")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, 12)
-                        .frame(height: 32)
-                        .background(KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true))
-                        .cornerRadius(10)
-                    Spacer()
-                    Button(action: {
-                        state.glassTypeState.reset()
-                        state.selectedWeightSpec = GlassWeightSpec.defaults.first
-                    }) {
-                        Text("Change")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 16)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(GlassWeightSpec.defaults) { spec in
-                            let isSelected = state.selectedWeightSpec?.id == spec.id
-
-                            Button(action: { state.selectedWeightSpec = spec }) {
-                                Text(spec.name)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .lineLimit(1)
-                                    .frame(height: 32)
-                                    .padding(.horizontal, 12)
-                                    .background {
-                                        if isSelected {
-                                            KeyboardKeyBackground(cornerRadius: 10, isSpecial: true, isAccent: true)
-                                        } else {
-                                            KeyboardCardBackground(cornerRadius: 10)
-                                        }
+            .padding(.horizontal, 14)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(GlassWeightSpec.defaults) { spec in
+                        let isSelected = state.selectedWeightSpec?.id == spec.id
+                        Button(action: { state.selectedWeightSpec = spec }) {
+                            Text(spec.name)
+                                .font(.system(size: 12, weight: .semibold))
+                                .lineLimit(1)
+                                .padding(.horizontal, 10)
+                                .frame(height: 28)
+                                .background {
+                                    if isSelected {
+                                        KeyboardKeyBackground(cornerRadius: 14, isSpecial: true, isAccent: true)
+                                    } else {
+                                        KeyboardCardBackground(cornerRadius: 14)
                                     }
-                                    .foregroundColor(isSelected ? .white : .primary)
-                                    .cornerRadius(10)
-                            }
-                            .buttonStyle(.plain)
+                                }
+                                .foregroundColor(isSelected ? .white : .primary)
+                                .cornerRadius(14)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 16)
                 }
+                .padding(.horizontal, 14)
             }
         }
     }
@@ -820,60 +746,84 @@ struct WeightSpecSelectorView: View {
 
 struct MeasurementDisplayView: View {
     @ObservedObject var state: KeyboardState
+    @State private var activeSource: FormulaSource = .sight
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             if state.mode == .cutSize {
-                let source = state.selectedPreset?.source ?? .sight
-                HStack(spacing: 8) {
-                    if source == .sight {
-                        MeasurementCardView(
-                            title: "Sight",
-                            widthExpr: state.sightWidth,
-                            heightExpr: state.sightHeight,
-                            activeField: state.activeField,
-                            widthField: .sightWidth,
-                            heightField: .sightHeight,
-                            onTap: { field in state.selectField(field) }
-                        )
-                        MeasurementCardView(
-                            title: "Tight",
-                            widthExpr: state.tightWidth,
-                            heightExpr: state.tightHeight,
-                            activeField: state.activeField,
-                            widthField: .tightWidth,
-                            heightField: .tightHeight,
-                            isOptional: true,
-                            onTap: { field in state.selectField(field) }
-                        )
-                    } else {
-                        MeasurementCardView(
-                            title: "Tight",
-                            widthExpr: state.tightWidth,
-                            heightExpr: state.tightHeight,
-                            activeField: state.activeField,
-                            widthField: .tightWidth,
-                            heightField: .tightHeight,
-                            onTap: { field in state.selectField(field) }
-                        )
-                        MeasurementCardView(
-                            title: "Sight",
-                            widthExpr: state.sightWidth,
-                            heightExpr: state.sightHeight,
-                            activeField: state.activeField,
-                            widthField: .sightWidth,
-                            heightField: .sightHeight,
-                            isOptional: true,
-                            onTap: { field in state.selectField(field) }
-                        )
-                    }
+                let presetSource = state.selectedPreset?.source ?? .sight
+
+                SourceToggleView(activeSource: activeSource) { newSource in
+                    activeSource = newSource
+                    let firstField: MeasurementField = newSource == .sight ? .sightHeight : .tightHeight
+                    state.selectField(firstField)
                 }
-                CutSummaryView(result: state.result, formulaSource: source)
+
+                MeasurementCardView(
+                    widthExpr: activeSource == .sight ? state.sightWidth : state.tightWidth,
+                    heightExpr: activeSource == .sight ? state.sightHeight : state.tightHeight,
+                    activeField: state.activeField,
+                    widthField: activeSource == .sight ? .sightWidth : .tightWidth,
+                    heightField: activeSource == .sight ? .sightHeight : .tightHeight,
+                    onTap: { field in state.selectField(field) }
+                )
+
+                CutSummaryView(result: state.result, formulaSource: presetSource)
             } else {
                 WeightAutoDisplayView(state: state)
             }
         }
         .padding(.horizontal, 14)
+        .onChange(of: state.selectedPreset?.id) { _, _ in
+            activeSource = state.selectedPreset?.source ?? .sight
+        }
+    }
+}
+
+private struct SourceToggleView: View {
+    let activeSource: FormulaSource
+    let onSelect: (FormulaSource) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(FormulaSource.allCases) { source in
+                let isActive = source == activeSource
+                Button(action: { onSelect(source) }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: source == .sight ? "eye" : "scope")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(source.title)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .foregroundColor(isActive ? .primary : .secondary)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+            }
+        }
+        .frame(height: 34)
+        .background {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(colorScheme == .dark
+                        ? Color(red: 0.118, green: 0.118, blue: 0.125)
+                        : Color(red: 0.675, green: 0.698, blue: 0.741).opacity(0.45))
+                GeometryReader { proxy in
+                    let w = proxy.size.width / 2
+                    let idx = CGFloat(FormulaSource.allCases.firstIndex(of: activeSource) ?? 0)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(colorScheme == .dark ? Color(white: 0.20) : Color.white)
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.15), radius: 2, x: 0, y: 1)
+                        .padding(2)
+                        .frame(width: w)
+                        .offset(x: idx * w)
+                        .animation(.spring(response: 0.22, dampingFraction: 0.85), value: activeSource)
+                }
+            }
+        }
     }
 }
 
@@ -921,57 +871,34 @@ struct WeightMeasurementCardView: View {
 }
 
 struct MeasurementCardView: View {
-    let title: String
     let widthExpr: String
     let heightExpr: String
     let activeField: MeasurementField
     let widthField: MeasurementField
     let heightField: MeasurementField
-    var isOptional: Bool = false
     let onTap: (MeasurementField) -> Void
 
-    private var isCardActive: Bool {
-        activeField == widthField || activeField == heightField
-    }
-
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(isCardActive ? .accentColor : .secondary)
-            }
+        HStack(spacing: 8) {
+            CompactFieldCellView(
+                title: "H",
+                expr: heightExpr,
+                isActive: activeField == heightField,
+                onTap: { onTap(heightField) }
+            )
 
-            HStack(spacing: 4) {
-                CompactFieldCellView(
-                    title: "H",
-                    expr: heightExpr,
-                    isActive: activeField == heightField,
-                    onTap: { onTap(heightField) }
-                )
+            Text("×")
+                .font(.system(size: 18, weight: .light))
+                .foregroundColor(.secondary)
 
-                Text("×")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.secondary)
-
-                CompactFieldCellView(
-                    title: "W",
-                    expr: widthExpr,
-                    isActive: activeField == widthField,
-                    onTap: { onTap(widthField) }
-                )
-            }
+            CompactFieldCellView(
+                title: "W",
+                expr: widthExpr,
+                isActive: activeField == widthField,
+                onTap: { onTap(widthField) }
+            )
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 52)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 4)
-        .background(KeyboardCardBackground(cornerRadius: 9))
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(isCardActive ? Color.accentColor.opacity(0.50) : Color.clear, lineWidth: 1.5)
-        )
-        .cornerRadius(9)
     }
 }
 
@@ -980,8 +907,6 @@ struct CompactFieldCellView: View {
     let expr: String
     let isActive: Bool
     let onTap: () -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
 
     var resolvedText: String {
         if expr.isEmpty { return "" }
@@ -992,36 +917,40 @@ struct CompactFieldCellView: View {
     }
 
     var body: some View {
-        VStack(alignment: .center, spacing: 2) {
-            Text(title)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundColor(.secondary)
-
-            Text(expr.isEmpty ? "—" : resolvedText)
-                .font(.system(size: 13, weight: isActive ? .bold : .semibold))
-                .foregroundColor(expr.isEmpty ? Color(UIColor.tertiaryLabel) : (isActive ? .accentColor : .primary))
+        HStack(alignment: .center, spacing: 4) {
+            Text(expr.isEmpty ? title : resolvedText)
+                .font(.system(size: expr.isEmpty ? 16 : 22,
+                              weight: isActive ? .bold : .semibold,
+                              design: .rounded))
+                .foregroundColor(expr.isEmpty
+                    ? Color(UIColor.tertiaryLabel)
+                    : (isActive ? .accentColor : .primary))
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.6)
+            Spacer(minLength: 0)
+            if !expr.isEmpty {
+                Text("mm")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, minHeight: 32)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 44)
         .background {
             if isActive {
-                RoundedRectangle(cornerRadius: 7)
+                RoundedRectangle(cornerRadius: 9)
                     .fill(.thinMaterial)
-                    .overlay(RoundedRectangle(cornerRadius: 7).fill(Color.accentColor.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 9).fill(Color.accentColor.opacity(0.08)))
             } else {
-                KeyboardCardBackground(cornerRadius: 7)
+                KeyboardCardBackground(cornerRadius: 9)
             }
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
+            RoundedRectangle(cornerRadius: 9)
                 .stroke(
-                    isActive
-                    ? Color.accentColor.opacity(0.85)
-                    : (colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.18)),
-                    lineWidth: 1.5
+                    isActive ? Color.accentColor.opacity(0.85) : Color.clear,
+                    lineWidth: 1
                 )
         )
         .onTapGesture { onTap() }
@@ -1033,67 +962,44 @@ struct CutSummaryView: View {
     var formulaSource: FormulaSource = .sight
 
     var body: some View {
-        VStack(spacing: 0) {
-            // ── Main row: cut size + adjustment ──────────────────────────
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Glazing Size")
-                        .font(.system(size: 10, weight: .semibold))
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Glazing size")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+
+            if let result {
+                Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × ") + " mm")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.accentColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 6, height: 6)
+                    Text("\(formulaSource.title) size calculated")
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
-
-                    if let result {
-                        Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × "))
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    } else {
-                        Text("Enter \(formulaSource.title) H and W")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Color(UIColor.tertiaryLabel))
-                    }
                 }
 
-                Spacer(minLength: 8)
-
-                if let result {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text("Adjustment")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        Text(result.adjustment > 0 ? "+\(result.adjustment)mm" : "\(result.adjustment)mm")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.accentColor)
-                    }
+                if result.hasClearanceInfo {
+                    ClearanceRowView(clearance: result.clearance)
+                        .padding(.top, 2)
                 }
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, result?.hasClearanceInfo == true ? 4 : 8)
-
-            // ── Clearance row (only when data available) ──────────────────
-            if let result, result.hasClearanceInfo {
-                ClearanceRowView(clearance: result.clearance)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, (result.sightTightHeightDiff != nil && result.sightTightWidthDiff != nil) || result.sightTightInvestigateLabel != nil ? 2 : 7)
-            }
-
-            // ── Sight–Tight difference row ─────────────────────────────────
-            if let result,
-               result.sightTightHeightDiff != nil && result.sightTightWidthDiff != nil
-               || result.sightTightInvestigateLabel != nil {
-                SightTightDiffRowView(
-                    heightDiff: result.sightTightHeightDiff,
-                    widthDiff: result.sightTightWidthDiff,
-                    investigateLabel: result.sightTightInvestigateLabel
-                )
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 7)
+            } else {
+                Text("Enter \(formulaSource.title) H and W")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Color(UIColor.tertiaryLabel))
             }
         }
-        .frame(maxWidth: .infinity)
-        .background { KeyboardCardBackground(cornerRadius: 12) }
-        .cornerRadius(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.accentColor.opacity(0.06))
+        )
     }
 }
 
@@ -1453,7 +1359,7 @@ struct NumpadView: View {
     private let keyHeight: CGFloat = 36
     private let keySpacing: CGFloat = 5
     private let sidePadding: CGFloat = 14
-    private let topPadding: CGFloat = 6
+    private let topPadding: CGFloat = 10
     private let bottomPadding: CGFloat = 2
 
     // Right column: row 0 = backspace (keyboard-only), rows 1-2 = host-targeting
