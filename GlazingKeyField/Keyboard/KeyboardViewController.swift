@@ -7,9 +7,11 @@ class KeyboardViewController: KeyboardInputViewController {
     private var hasSetupView = false
     private let presetsStore = PresetsStore()
     private let diagnostics = KeyboardDiagnostics()
+    private let renderState = KeyboardRenderState()
     private let keyboardHeight: CGFloat = 408
 
     override func viewDidLoad() {
+        renderState.isContentVisible = false
         view.backgroundColor = .clear
         view.isOpaque = false
         super.viewDidLoad()
@@ -28,6 +30,11 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         clearHostBackgrounds()
+        if !renderState.isContentVisible {
+            DispatchQueue.main.async { [weak self] in
+                self?.renderState.isContentVisible = true
+            }
+        }
     }
 
     override func viewWillLayoutSubviews() {
@@ -58,6 +65,7 @@ class KeyboardViewController: KeyboardInputViewController {
             guard let self else { return KeyboardRootView(
                 presetsStore: PresetsStore(),
                 diagnostics: KeyboardDiagnostics(),
+                renderState: KeyboardRenderState(),
                 keyboardHeight: 408,
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },
@@ -69,6 +77,7 @@ class KeyboardViewController: KeyboardInputViewController {
             return KeyboardRootView(
                 presetsStore: self.presetsStore,
                 diagnostics: self.diagnostics,
+                renderState: self.renderState,
                 keyboardHeight: self.keyboardHeight,
                 onInsert: { controller.textDocumentProxy.insertText($0) },
                 onSwitchKeyboard: { controller.advanceToNextInputMode() },

@@ -7,6 +7,7 @@ import KeyboardKit
 struct GlassTypeTabView: View {
     @ObservedObject var glassState: GlassTypeState
     let onBuildConfirmed: (GlassBuild) -> Void   // called when user confirms via ✓
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 4) {
@@ -43,8 +44,8 @@ struct GlassTypeTabView: View {
                 GeometryReader { proxy in
                     let w = proxy.size.width / 2
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(UIColor.systemBackground))
-                        .shadow(color: .black.opacity(0.12), radius: 2, x: 0, y: 1)
+                        .fill(colorScheme == .dark ? Color(white: 0.20) : Color.white)
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.12), radius: 2, x: 0, y: 1)
                         .padding(2)
                         .frame(width: w)
                         .offset(x: glassState.buildMode == .dgu ? w : 0)

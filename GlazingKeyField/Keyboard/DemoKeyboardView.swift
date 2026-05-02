@@ -15,6 +15,10 @@ enum KeyboardPreferences {
     static let debugModeKey = "glazing_keyboard_debug_mode_v1"
 }
 
+final class KeyboardRenderState: ObservableObject {
+    @Published var isContentVisible = true
+}
+
 final class KeyboardDiagnostics: ObservableObject {
     @Published private(set) var entries: [String] = []
     @Published private(set) var rootSizeDescription: String = "--"
@@ -327,6 +331,7 @@ final class KeyboardState: ObservableObject {
 struct KeyboardRootView: View {
     @ObservedObject var presetsStore: PresetsStore
     @ObservedObject var diagnostics: KeyboardDiagnostics
+    @ObservedObject var renderState: KeyboardRenderState
     let keyboardHeight: CGFloat
     let onInsert: (String) -> Void
     let onSwitchKeyboard: () -> Void
@@ -339,6 +344,7 @@ struct KeyboardRootView: View {
     init(
         presetsStore: PresetsStore,
         diagnostics: KeyboardDiagnostics,
+        renderState: KeyboardRenderState,
         keyboardHeight: CGFloat,
         onInsert: @escaping (String) -> Void,
         onSwitchKeyboard: @escaping () -> Void,
@@ -347,6 +353,7 @@ struct KeyboardRootView: View {
     ) {
         self.presetsStore = presetsStore
         self.diagnostics = diagnostics
+        self.renderState = renderState
         self.keyboardHeight = keyboardHeight
         self.onInsert = onInsert
         self.onSwitchKeyboard = onSwitchKeyboard
@@ -364,6 +371,8 @@ struct KeyboardRootView: View {
         ZStack(alignment: .bottom) {
             keyboardShell
                 .frame(height: keyboardHeight)
+                .opacity(renderState.isContentVisible ? 1 : 0)
+                .animation(.easeIn(duration: 0.15), value: renderState.isContentVisible)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .background(KeyboardRootSizeReporter(diagnostics: diagnostics))
@@ -749,7 +758,7 @@ struct MeasurementDisplayView: View {
     @State private var activeSource: FormulaSource = .sight
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             if state.mode == .cutSize {
                 let presetSource = state.selectedPreset?.source ?? .sight
 
@@ -791,11 +800,11 @@ private struct SourceToggleView: View {
             ForEach(FormulaSource.allCases) { source in
                 let isActive = source == activeSource
                 Button(action: { onSelect(source) }) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Image(systemName: source == .sight ? "eye" : "scope")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                         Text(source.title)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .foregroundColor(isActive ? .primary : .secondary)
@@ -804,7 +813,7 @@ private struct SourceToggleView: View {
                 .contentShape(Rectangle())
             }
         }
-        .frame(height: 34)
+        .frame(height: 28)
         .background {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -919,7 +928,7 @@ struct CompactFieldCellView: View {
     var body: some View {
         HStack(alignment: .center, spacing: 4) {
             Text(expr.isEmpty ? title : resolvedText)
-                .font(.system(size: expr.isEmpty ? 16 : 22,
+                .font(.system(size: expr.isEmpty ? 14 : 18,
                               weight: isActive ? .bold : .semibold,
                               design: .rounded))
                 .foregroundColor(expr.isEmpty
@@ -930,13 +939,13 @@ struct CompactFieldCellView: View {
             Spacer(minLength: 0)
             if !expr.isEmpty {
                 Text("mm")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, minHeight: 36)
         .background {
             if isActive {
                 RoundedRectangle(cornerRadius: 9)
@@ -962,14 +971,14 @@ struct CutSummaryView: View {
     var formulaSource: FormulaSource = .sight
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             Text("Glazing size")
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 9, weight: .medium))
                 .foregroundColor(.secondary)
 
             if let result {
                 Text(result.cutSizeOnly.replacingOccurrences(of: "x", with: " × ") + " mm")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
                     .foregroundColor(.accentColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
@@ -977,15 +986,25 @@ struct CutSummaryView: View {
                 HStack(spacing: 4) {
                     Circle()
                         .fill(Color.green)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 5, height: 5)
                     Text("\(formulaSource.title) size calculated")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(.secondary)
                 }
 
                 if result.hasClearanceInfo {
                     ClearanceRowView(clearance: result.clearance)
                         .padding(.top, 2)
+                }
+
+                if result.sightTightHeightDiff != nil && result.sightTightWidthDiff != nil
+                    || result.sightTightInvestigateLabel != nil {
+                    SightTightDiffRowView(
+                        heightDiff: result.sightTightHeightDiff,
+                        widthDiff: result.sightTightWidthDiff,
+                        investigateLabel: result.sightTightInvestigateLabel
+                    )
+                    .padding(.top, 2)
                 }
             } else {
                 Text("Enter \(formulaSource.title) H and W")
@@ -994,7 +1013,7 @@ struct CutSummaryView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -1341,8 +1360,8 @@ struct WeightAutoDisplayView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, minHeight: 54)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 44)
         .background(KeyboardCardBackground(cornerRadius: 10))
         .cornerRadius(10)
     }
@@ -1418,7 +1437,7 @@ struct NumpadView: View {
             .padding(.top, topPadding)
             .padding(.bottom, bottomPadding)
         }
-        .frame(height: 167)
+        .frame(height: 172)
     }
 
     private func handleKey(_ key: KeypadKey) {
